@@ -1592,3 +1592,269 @@ body {
     padding: 6px 12px;
   }
 }
+
+/* ============================ Endless / Recipes / Customers ============================ */
+.start-cta {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn-endless {
+  background: linear-gradient(135deg, #ff7a18, #b11226);
+  color: #fff;
+  border: none;
+}
+.btn-endless:hover {
+  filter: brightness(1.08);
+}
+
+/* Customer line in the order ticket */
+.ticket-customer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 6px;
+}
+.cust-avatar {
+  font-size: 26px;
+  line-height: 1;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+.cust-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cust-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.cust-line {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Endless HUD */
+.endless-hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.hud-lives {
+  letter-spacing: 2px;
+}
+.hud-streak,
+.hud-served {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Customer reaction on the result screen */
+.result-customer {
+  font-size: 14px;
+  color: var(--gold-soft);
+  font-style: italic;
+  margin: 8px 0 4px;
+}
+
+/* Recipe book */
+#screen-recipes.is-active,
+#screen-endless.is-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  min-height: 0;
+}
+.recipes-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 24px;
+  width: 100%;
+  max-width: 620px;
+  box-shadow: var(--shadow);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+}
+.recipes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.recipes-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 16px;
+}
+.recipes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rb-item {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  text-align: left;
+}
+.rb-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rb-name {
+  font-weight: 700;
+  font-size: 17px;
+}
+.rb-tags {
+  font-size: 12px;
+  color: var(--gold-soft);
+}
+.rb-order {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 8px;
+  line-height: 1.4;
+}
+.rb-ings {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 14px;
+  font-size: 13px;
+}
+.rb-ings li {
+  color: var(--text);
+}
+.rb-amt {
+  display: inline-block;
+  min-width: 56px;
+  color: var(--gold);
+  font-weight: 600;
+}
+.rb-garnish {
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+/* Endless finish stats */
+.endless-stats {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin: 12px 0 8px;
+}
+.estat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.estat-num {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--gold);
+}
+.estat-lbl {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 520px) {
+  .rb-ings {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================ Training coach ============================ */
+.coach {
+  background: linear-gradient(180deg, rgba(233, 185, 73, 0.14), rgba(233, 185, 73, 0.05));
+  border: 1px solid rgba(233, 185, 73, 0.45);
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  animation: coachIn 0.4s ease;
+}
+@keyframes coachIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.coach-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.coach-avatar {
+  font-size: 20px;
+}
+.coach-step {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold);
+  font-weight: 700;
+}
+.coach-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.coach-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.coach-body strong {
+  color: var(--gold-soft);
+}
+
+/* Glow the correct choice during a training lesson */
+.train-hint {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 1px var(--gold) inset, 0 0 14px rgba(233, 185, 73, 0.55) !important;
+  animation: hintPulse 1.3s ease-in-out infinite;
+}
+@keyframes hintPulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--gold) inset, 0 0 8px rgba(233, 185, 73, 0.4); }
+  50% { box-shadow: 0 0 0 1px var(--gold) inset, 0 0 18px rgba(233, 185, 73, 0.8); }
+}
+.cat-item.train-hint {
+  opacity: 1;
+}
+
+@media (max-width: 700px) {
+  .coach {
+    padding: 8px 12px;
+  }
+  .coach-title {
+    font-size: 14px;
+  }
+  .coach-body {
+    font-size: 12px;
+  }
+}

@@ -4,6 +4,7 @@ import {
   INGREDIENTS,
   GARNISHES,
   RECIPES,
+  CUSTOMERS,
   INGREDIENT_BY_ID,
   GLASS_BY_ID,
   METHOD_BY_ID,
@@ -16,7 +17,7 @@ import { evaluate } from "./mixology.js";
 // ============================ Game state ============================
 const state = {
   difficulty: "basic", // 'basic' | 'advanced' | 'mixologist'
-  mode: "campaign", // 'campaign' | 'mixologist' | 'challenge'
+  mode: "campaign", // 'campaign' | 'mixologist' | 'challenge' | 'endless'
   challenge: null, // recipe object when recreating a saved invention
   stage: 0,
   totalScore: 0,
@@ -25,6 +26,15 @@ const state = {
   stepIndex: 0,
   mixed: false, // true once a shake/stir/blend has blended the liquids
   build: emptyBuild(),
+  // Endless shift
+  lives: 3,
+  streak: 0,
+  bestStreak: 0,
+  served: 0,
+  endlessRecipe: null,
+  lastEndlessIdx: -1,
+  customer: null,
+  trainingRecipe: null,
 };
 
 const STRICTNESS = "balanced";
@@ -35,15 +45,26 @@ function emptyBuild() {
 
 // ============================ High score (localStorage) ============================
 const HIGH_SCORE_KEY = "lastcall_highscore";
+const ENDLESS_BEST_KEY = "lastcall_endless_best";
 function getHighScore() {
   return Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
 }
 function setHighScore(v) {
   try { localStorage.setItem(HIGH_SCORE_KEY, String(v)); } catch (e) { /* ignore */ }
 }
+function getEndlessBest() {
+  return Number(localStorage.getItem(ENDLESS_BEST_KEY) || 0);
+}
+function setEndlessBest(v) {
+  try { localStorage.setItem(ENDLESS_BEST_KEY, String(v)); } catch (e) { /* ignore */ }
+}
 function renderStartBest() {
   const best = getHighScore();
-  $("#start-best").textContent = best > 0 ? `🏅 Best score: ${best} pts` : "";
+  const eb = getEndlessBest();
+  const parts = [];
+  if (best > 0) parts.push(`🏅 Best shift: ${best} pts`);
+  if (eb > 0) parts.push(`🔥 Endless: ${eb} pts`);
+  $("#start-best").textContent = parts.join("  ·  ");
 }
 
 const STEP_META = {
@@ -318,6 +339,7 @@ function renderGlassPanel(body) {
   });
   body.innerHTML = "";
   body.appendChild(grid);
+  applyTrainingHints();
 }
 
 function renderMethodPanel(body) {
@@ -336,6 +358,7 @@ function renderMethodPanel(body) {
   });
   body.innerHTML = "";
   body.appendChild(grid);
+  applyTrainingHints();
 }
 
 function renderGarnishPanel(body) {
@@ -355,6 +378,7 @@ function renderGarnishPanel(body) {
   });
   body.innerHTML = "";
   body.appendChild(grid);
+  applyTrainingHints();
 }
 
 // ---- Ingredients panel ----
@@ -393,6 +417,7 @@ function fillCatalog() {
     group.appendChild(items);
     el.appendChild(group);
   });
+  applyTrainingHints();
 }
 
 function fillBuildList() {
@@ -495,6 +520,8 @@ function enterStep() {
   setStatus(STEP_META[step].status);
   renderTracker();
   renderStepPanel();
+  renderCoach();
+  applyTrainingHints();
   updateNav();
   updateProgress();
 }
@@ -530,6 +557,8 @@ function loadStage(index) {
   state.build = emptyBuild();
   state.mixed = false;
   $(".progress-wrap").style.display = "";
+  $(".progress-track").style.display = "";
+  $("#endless-hud").style.display = "none";
   const recipe = RECIPES[index];
 
   // Basic mode: glass & method are chosen automatically.
@@ -540,8 +569,11 @@ function loadStage(index) {
   state.steps = getSteps(state.difficulty);
   state.stepIndex = 0;
 
+  $("#ticket-label").textContent = "Customer Order";
   $("#stage-pill").textContent = `Stage ${index + 1} / ${RECIPES.length}`;
   $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
+  pickCustomer();
+  renderCustomer(recipe.name);
   $("#order-name").textContent = recipe.name;
   $("#order-desc").textContent = recipe.order;
   animatePoints(state.totalScore);
@@ -552,6 +584,106 @@ function loadStage(index) {
   showScreen("screen-game");
 }
 
+// ============================ Endless shift ============================
+function renderEndlessHud() {
+  const hearts = "❤".repeat(state.lives) + "🖤".repeat(Math.max(0, 3 - state.lives));
+  $("#endless-hud").innerHTML =
+    `<span class="hud-lives">${hearts}</span>` +
+    `<span class="hud-streak">🔥 ${state.streak}</span>` +
+    `<span class="hud-served">🍸 ${state.served}</span>`;
+}
+
+function loadEndless(next = false) {
+  state.mode = "endless";
+  state.challenge = null;
+  state.build = emptyBuild();
+  state.mixed = false;
+
+  // Pick a random recipe that isn't an immediate repeat.
+  let idx = Math.floor(Math.random() * RECIPES.length);
+  if (RECIPES.length > 1) {
+    while (idx === state.lastEndlessIdx) idx = Math.floor(Math.random() * RECIPES.length);
+  }
+  state.lastEndlessIdx = idx;
+  const recipe = RECIPES[idx];
+  state.endlessRecipe = recipe;
+
+  if (state.difficulty === "basic") {
+    state.build.glass = recipe.glass;
+    state.build.method = recipe.method;
+  }
+  state.steps = getSteps(state.difficulty === "mixologist" ? "advanced" : state.difficulty);
+  state.stepIndex = 0;
+
+  // HUD: hide the linear progress bar, show lives/streak.
+  $(".progress-wrap").style.display = "";
+  $(".progress-track").style.display = "none";
+  $("#endless-hud").style.display = "";
+  renderEndlessHud();
+
+  $("#ticket-label").textContent = "Now serving";
+  $("#stage-pill").textContent = `Endless · 🍸 ${state.served}`;
+  $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
+  pickCustomer();
+  renderCustomer(recipe.name);
+  $("#order-name").textContent = recipe.name;
+  $("#order-desc").textContent = recipe.order;
+  animatePoints(state.totalScore);
+
+  renderStation();
+  enterStep();
+  showScreen("screen-game");
+}
+
+function serveEndless() {
+  lastResult = scoreBuild();
+  state.served += 1;
+  let tip = 0;
+  if (lastResult.stars >= 1) {
+    state.streak += 1;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    if (lastResult.stars === 3) tip = 10 + state.streak * 2; // streak-boosted tip
+  } else {
+    state.lives -= 1;
+    state.streak = 0;
+    Sound.fail();
+  }
+  lastResult.tip = tip;
+  state.totalScore += lastResult.stagePoints + tip;
+  showResult(lastResult);
+}
+
+function showEndlessFinish() {
+  const best = getEndlessBest();
+  const isNew = state.totalScore > best;
+  if (isNew) setEndlessBest(state.totalScore);
+
+  $("#endless-stats").innerHTML =
+    `<div class="estat"><span class="estat-num">${state.totalScore}</span><span class="estat-lbl">points</span></div>` +
+    `<div class="estat"><span class="estat-num">${state.served}</span><span class="estat-lbl">served</span></div>` +
+    `<div class="estat"><span class="estat-num">${state.bestStreak}</span><span class="estat-lbl">best streak</span></div>`;
+
+  let rank;
+  if (state.served >= 20) rank = "🏆 Legend of the Bar";
+  else if (state.served >= 14) rank = "🍸 Head Bartender";
+  else if (state.served >= 8) rank = "🥃 Solid Shift";
+  else if (state.served >= 4) rank = "🍋 Getting There";
+  else rank = "🧽 Cut Short";
+  $("#endless-rank").textContent = rank;
+
+  const bestEl = $("#endless-best");
+  if (isNew) {
+    bestEl.textContent = `🎉 New endless record! (was ${best} pts)`;
+    bestEl.classList.add("is-new");
+    Sound.coin();
+  } else {
+    bestEl.textContent = `🔥 Endless best: ${best} pts`;
+    bestEl.classList.remove("is-new");
+  }
+  renderStartBest();
+  showScreen("screen-endless");
+}
+
 // ============================ Scoring ============================
 function tolerance(unit, target) {
   if (unit === "ml") return Math.max(7.5, target * 0.2);
@@ -559,7 +691,130 @@ function tolerance(unit, target) {
 }
 
 function currentRecipe() {
-  return state.mode === "challenge" && state.challenge ? state.challenge : RECIPES[state.stage];
+  if (state.mode === "training" && state.trainingRecipe) return state.trainingRecipe;
+  if (state.mode === "challenge" && state.challenge) return state.challenge;
+  if (state.mode === "endless" && state.endlessRecipe) return state.endlessRecipe;
+  return RECIPES[state.stage];
+}
+
+// ============================ Customers ============================
+function pickCustomer() {
+  state.customer = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
+  return state.customer;
+}
+
+function renderCustomer(drinkName) {
+  const el = $("#ticket-customer");
+  if (!el) return;
+  const c = state.customer;
+  if (!c) { el.innerHTML = ""; el.style.display = "none"; return; }
+  el.style.display = "";
+  const line = c.lines[Math.floor(Math.random() * c.lines.length)].replace("{drink}", drinkName);
+  el.innerHTML = `<span class="cust-avatar">${c.emoji}</span><span class="cust-meta"><span class="cust-name">${c.name}</span><span class="cust-line">"${line}"</span></span>`;
+}
+
+function clearCustomer() {
+  state.customer = null;
+  const el = $("#ticket-customer");
+  if (el) { el.innerHTML = ""; el.style.display = "none"; }
+}
+
+// ============================ Training (guided tutorial) ============================
+function loadTraining() {
+  state.mode = "training";
+  state.difficulty = "advanced"; // full flow, so they learn every step
+  state.challenge = null;
+  state.trainingRecipe = RECIPES.find((r) => r.id === "daiquiri") || RECIPES[0];
+  state.build = emptyBuild();
+  state.mixed = false;
+  state.steps = getSteps("advanced");
+  state.stepIndex = 0;
+  state.totalScore = 0;
+  state.starsEarned = 0;
+  displayedScore = 0;
+
+  $(".progress-wrap").style.display = "none";
+  $("#endless-hud").style.display = "none";
+  clearCustomer();
+
+  const r = state.trainingRecipe;
+  $("#ticket-label").textContent = "Training drink";
+  $("#stage-pill").textContent = "📚 Training";
+  $("#diff-pill").textContent = "Tutorial";
+  $("#order-name").textContent = r.name;
+  $("#order-desc").textContent = r.order;
+
+  renderStation();
+  enterStep();
+  showScreen("screen-game");
+}
+
+function renderCoach() {
+  const el = $("#coach");
+  if (!el) return;
+  if (state.mode !== "training") { el.style.display = "none"; el.innerHTML = ""; return; }
+  el.style.display = "";
+  el.innerHTML = coachHTML();
+}
+
+function coachHTML() {
+  const r = currentRecipe();
+  const step = state.steps[state.stepIndex];
+  const n = state.stepIndex + 1;
+  const total = state.steps.length;
+  let title = "";
+  let body = "";
+  if (step === "glass") {
+    const gname = GLASS_BY_ID[r.glass].name;
+    title = "👋 Welcome to bartending school!";
+    body = `We'll make a <strong>${r.name}</strong> together. Every cocktail has its own glass — a ${r.name} is served in a <strong>${gname}</strong>. Tap the glowing ${gname}, then hit <strong>Next →</strong>.`;
+  } else if (step === "ingredients") {
+    const list = r.ingredients
+      .map((i) => `<strong>${i.amount} ${INGREDIENT_BY_ID[i.id].unit} ${INGREDIENT_BY_ID[i.id].name}</strong>`)
+      .join(", ");
+    title = "🫗 Now build the drink";
+    body = `Tap each glowing ingredient to pour it, then use the <strong>− / +</strong> buttons to set the amount: ${list}. Don't worry about being exact — anything within ~20% still scores.`;
+  } else if (step === "method") {
+    const mname = METHOD_BY_ID[r.method].name;
+    title = "🍸 Mix it up";
+    body = `Time to combine everything. A ${r.name} is <strong>${mname.toLowerCase()}ed</strong> with ice — tap the glowing <strong>${mname}</strong> and watch the bartender work.`;
+  } else if (step === "garnish") {
+    const gid = r.garnish[0];
+    const gname = GARNISH_BY_ID[gid].name;
+    title = "🍋 The finishing touch";
+    body = gid === "none"
+      ? `This drink needs <strong>no garnish</strong> — tap <strong>None</strong>, then press <strong>Serve Drink</strong>.`
+      : `Finish with a <strong>${gname}</strong>. Tap it, then press <strong>Serve Drink</strong> to see your stars!`;
+  }
+  return (
+    `<div class="coach-head"><span class="coach-avatar">🧑‍🏫</span><span class="coach-step">Lesson ${n} of ${total}</span></div>` +
+    `<p class="coach-title">${title}</p>` +
+    `<p class="coach-body">${body}</p>`
+  );
+}
+
+// Glow the correct choice(s) for the current training step.
+function applyTrainingHints() {
+  if (state.mode !== "training") return;
+  const r = currentRecipe();
+  const step = state.steps[state.stepIndex];
+  if (step === "glass") highlightChips(GLASS_BY_ID[r.glass].name);
+  else if (step === "method") highlightChips(METHOD_BY_ID[r.method].name);
+  else if (step === "garnish") highlightChips(GARNISH_BY_ID[r.garnish[0]].name);
+  else if (step === "ingredients") {
+    const need = new Set(r.ingredients.map((i) => INGREDIENT_BY_ID[i.id].name));
+    document.querySelectorAll("#ingredient-catalog .cat-item").forEach((b) => {
+      b.classList.toggle("train-hint", need.has(b.textContent) && !b.classList.contains("is-added"));
+    });
+  }
+}
+
+function highlightChips(name) {
+  document.querySelectorAll("#panel-body .chip").forEach((c) => {
+    const span = c.querySelector("span:not(.emoji)");
+    const txt = (span ? span.textContent : c.textContent).trim();
+    c.classList.toggle("train-hint", txt.startsWith(name));
+  });
 }
 
 function scoreBuild() {
@@ -648,11 +903,30 @@ let lastResult = null;
 
 function serve() {
   if (state.mode === "mixologist") { serveMix(); return; }
+  if (state.mode === "endless") { serveEndless(); return; }
+  if (state.mode === "training") {
+    lastResult = scoreBuild();
+    if (lastResult.stars === 0) Sound.fail();
+    else Sound.coin();
+    showResult(lastResult);
+    return;
+  }
   lastResult = scoreBuild();
   state.totalScore += lastResult.stagePoints;
   state.starsEarned += lastResult.stars;
   if (lastResult.stars === 0) Sound.fail();
   showResult(lastResult);
+}
+
+// Customer reaction line based on how good the drink was.
+const REACTIONS = {
+  good: ["Perfect — you're an artist!", "Wow, exactly right.", "Best {drink} I've had in ages!", "Flawless. Keep the change!"],
+  ok: ["Not bad at all.", "That'll do nicely, thanks.", "Pretty good, cheers!", "Yeah, I'd order that again."],
+  bad: ["Hmm… this isn't quite right.", "That's not what I ordered…", "I'll, uh, drink it I guess.", "Did you read the order?"],
+};
+function reactionFor(stars, drinkName) {
+  const pool = stars === 3 ? REACTIONS.good : stars >= 1 ? REACTIONS.ok : REACTIONS.bad;
+  return pool[Math.floor(Math.random() * pool.length)].replace("{drink}", drinkName);
 }
 
 // ============================ Mixologist mode ============================
@@ -669,6 +943,7 @@ function startMixologist() {
   state.steps = getSteps("mixologist");
   state.stepIndex = 0;
   $(".progress-wrap").style.display = "none";
+  clearCustomer();
   $("#stage-pill").textContent = "Mixologist";
   $("#diff-pill").textContent = "Sandbox";
   $("#order-name").textContent = "Invent a Cocktail";
@@ -807,6 +1082,7 @@ function loadChallenge(recipe) {
   state.steps = getSteps("advanced");
   state.stepIndex = 0;
   $(".progress-wrap").style.display = "none";
+  clearCustomer();
   $("#stage-pill").textContent = "Challenge";
   $("#diff-pill").textContent = "Recreate";
   $("#order-name").textContent = recipe.name;
@@ -847,7 +1123,19 @@ function showResult(result) {
   }
 
   $("#result-pct").textContent = result.pct;
-  $("#result-points").textContent = result.stagePoints;
+  const pts = result.stagePoints + (result.tip || 0);
+  $("#result-points").textContent = pts;
+
+  // Customer reaction (campaign & endless only)
+  const custEl = $("#result-customer");
+  if (state.customer && state.mode !== "challenge") {
+    let line = `${state.customer.emoji} ${state.customer.name}: "${reactionFor(result.stars, recipe.name)}"`;
+    if (result.tip) line += `  💵 +${result.tip} tip`;
+    custEl.textContent = line;
+    custEl.style.display = "";
+  } else {
+    custEl.style.display = "none";
+  }
 
   const list = $("#feedback-list");
   list.innerHTML = "";
@@ -858,9 +1146,24 @@ function showResult(result) {
     list.appendChild(li);
   });
 
-  if (state.mode === "challenge") {
+  const retryBtn = $("#btn-retry");
+  if (state.mode === "training") {
+    retryBtn.style.display = "";
+    retryBtn.textContent = "Try again";
+    $("#result-eyebrow").textContent = result.stars >= 2 ? "🎓 You've got it!" : "Lesson complete";
+    $("#btn-next-stage").textContent = "Start a real shift →";
+  } else if (state.mode === "endless") {
+    retryBtn.style.display = "none";
+    retryBtn.textContent = "Retry stage";
+    $("#result-eyebrow").textContent = state.lives > 0 ? "Order up" : "Out of lives";
+    $("#btn-next-stage").textContent = state.lives > 0 ? "Next customer →" : "End shift →";
+  } else if (state.mode === "challenge") {
+    retryBtn.style.display = "";
+    retryBtn.textContent = "Retry stage";
     $("#btn-next-stage").textContent = "Back to My Bar";
   } else {
+    retryBtn.style.display = "";
+    retryBtn.textContent = "Retry stage";
     const isLast = state.stage === RECIPES.length - 1;
     $("#btn-next-stage").textContent = isLast ? "See results →" : "Next stage →";
   }
@@ -920,6 +1223,20 @@ $("#btn-start").addEventListener("click", () => {
   loadStage(0);
 });
 
+$("#btn-endless").addEventListener("click", () => {
+  Sound.init();
+  Sound.coin();
+  state.totalScore = 0;
+  state.starsEarned = 0;
+  state.lives = 3;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.served = 0;
+  state.lastEndlessIdx = -1;
+  displayedScore = 0;
+  loadEndless();
+});
+
 $("#btn-sound").addEventListener("click", () => {
   Sound.init();
   const on = Sound.toggle();
@@ -938,6 +1255,11 @@ $("#btn-next").addEventListener("click", goNext);
 $("#btn-back").addEventListener("click", goBack);
 
 $("#btn-retry").addEventListener("click", () => {
+  if (state.mode === "training") {
+    lastResult = null;
+    loadTraining();
+    return;
+  }
   if (lastResult) {
     state.totalScore -= lastResult.stagePoints;
     state.starsEarned -= lastResult.stars;
@@ -952,9 +1274,24 @@ $("#btn-retry").addEventListener("click", () => {
 
 $("#btn-next-stage").addEventListener("click", () => {
   lastResult = null;
+  if (state.mode === "training") {
+    // Graduate straight into a real (Basic) shift.
+    state.difficulty = "basic";
+    document.querySelectorAll(".diff-card").forEach((c) => c.classList.toggle("is-selected", c.dataset.diff === "basic"));
+    state.totalScore = 0;
+    state.starsEarned = 0;
+    displayedScore = 0;
+    loadStage(0);
+    return;
+  }
   if (state.mode === "challenge") {
     renderMyBar();
     showScreen("screen-mybar");
+    return;
+  }
+  if (state.mode === "endless") {
+    if (state.lives > 0) loadEndless(true);
+    else showEndlessFinish();
     return;
   }
   if (state.stage < RECIPES.length - 1) loadStage(state.stage + 1);
@@ -980,6 +1317,13 @@ $("#btn-mix-save").addEventListener("click", () => {
   $("#invent-name").value = "";
   $("#modal-name").classList.add("is-open");
   setTimeout(() => $("#invent-name").focus(), 50);
+});
+
+// Training
+$("#btn-training").addEventListener("click", () => {
+  Sound.init();
+  Sound.click();
+  loadTraining();
 });
 
 // My Bar
@@ -1020,6 +1364,66 @@ $("#btn-quit").addEventListener("click", () => {
   renderStartBest();
   showScreen("screen-start");
 });
+
+// ============================ Recipe Book ============================
+function renderRecipeBook() {
+  const el = $("#recipes-list");
+  el.innerHTML = "";
+  RECIPES.forEach((r) => {
+    const g = GLASS_BY_ID[r.glass];
+    const m = METHOD_BY_ID[r.method];
+    const garnish = GARNISH_BY_ID[r.garnish[0]];
+    const ings = r.ingredients
+      .map((i) => {
+        const ing = INGREDIENT_BY_ID[i.id];
+        return `<li><span class="rb-amt">${i.amount} ${ing.unit}</span> ${ing.name}</li>`;
+      })
+      .join("");
+    const card = document.createElement("div");
+    card.className = "rb-item";
+    card.innerHTML = `
+      <div class="rb-top">
+        <span class="rb-name">${r.name}</span>
+        <span class="rb-tags">${g.emoji} ${g.name} · ${m.emoji} ${m.name}</span>
+      </div>
+      <p class="rb-order">${r.order}</p>
+      <ul class="rb-ings">${ings}</ul>
+      <div class="rb-garnish">Garnish: ${garnish.emoji ? garnish.emoji + " " : ""}${garnish.name}</div>`;
+    el.appendChild(card);
+  });
+}
+
+$("#btn-recipes").addEventListener("click", () => {
+  Sound.init();
+  Sound.click();
+  renderRecipeBook();
+  showScreen("screen-recipes");
+});
+$("#btn-recipes-back").addEventListener("click", () => showScreen("screen-start"));
+
+// ============================ Endless finish actions ============================
+$("#btn-endless-again").addEventListener("click", () => {
+  state.totalScore = 0;
+  state.starsEarned = 0;
+  state.lives = 3;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.served = 0;
+  state.lastEndlessIdx = -1;
+  displayedScore = 0;
+  Sound.coin();
+  loadEndless();
+});
+$("#btn-endless-menu").addEventListener("click", () => {
+  renderStartBest();
+  showScreen("screen-start");
+});
+
+// Dynamic cocktail count in the footer.
+{
+  const footer = $("#start-footer");
+  if (footer) footer.innerHTML = `🍸 ${RECIPES.length} cocktails &nbsp;•&nbsp; precision pours &nbsp;•&nbsp; earn your stars`;
+}
 
 // Show the best score on first load.
 renderStartBest();

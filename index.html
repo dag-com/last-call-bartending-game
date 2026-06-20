@@ -42,14 +42,19 @@
             </div>
           </div>
 
-          <button id="btn-start" class="btn btn-primary btn-lg">Start Shift</button>
+          <div class="start-cta">
+            <button id="btn-start" class="btn btn-primary btn-lg">Start Shift</button>
+            <button id="btn-endless" class="btn btn-endless btn-lg">🔥 Endless Shift</button>
+          </div>
           <div class="start-links">
+            <button id="btn-training" class="btn btn-ghost">📚 Training</button>
             <button id="btn-how" class="btn btn-ghost">How to play</button>
+            <button id="btn-recipes" class="btn btn-ghost">Recipe Book</button>
             <button id="btn-mybar" class="btn btn-ghost">My Bar</button>
           </div>
           <p class="best-score" id="start-best"></p>
         </div>
-        <footer class="bar-footer">🍸 8 cocktails &nbsp;•&nbsp; precision pours &nbsp;•&nbsp; earn your stars</footer>
+        <footer class="bar-footer" id="start-footer">🍸 cocktails &nbsp;•&nbsp; precision pours &nbsp;•&nbsp; earn your stars</footer>
       </section>
 
       <!-- ============================== GAME SCREEN ============================== -->
@@ -70,20 +75,25 @@
           <div class="progress-track">
             <div class="progress-fill" id="progress-fill"></div>
           </div>
+          <div class="endless-hud" id="endless-hud"></div>
           <div class="points" id="points-counter">★ 0 pts</div>
         </div>
 
         <div class="order-ticket order-ticket-compact">
           <div class="ticket-head">
-            <span class="ticket-label">Customer Order</span>
+            <span class="ticket-label" id="ticket-label">Customer Order</span>
             <span class="ticket-dots">• • •</span>
           </div>
+          <div class="ticket-customer" id="ticket-customer"></div>
           <h2 class="ticket-name" id="order-name">Cocktail</h2>
           <p class="ticket-desc" id="order-desc">Order description…</p>
         </div>
 
         <!-- Step tracker -->
         <div class="step-tracker" id="step-tracker"></div>
+
+        <!-- Training coach (only shown in Training mode) -->
+        <div class="coach" id="coach" style="display:none"></div>
 
         <div class="stage-area">
           <!-- Bar station with the animated glass -->
@@ -121,6 +131,7 @@
             <span id="result-pct">0</span><span class="result-pct-sign">%</span>
             <span class="result-points">+<span id="result-points">0</span> pts</span>
           </div>
+          <p class="result-customer" id="result-customer"></p>
           <ul class="feedback" id="feedback-list"></ul>
           <div class="result-actions">
             <button id="btn-retry" class="btn btn-ghost">Retry stage</button>
@@ -170,6 +181,33 @@
         </div>
       </section>
 
+      <!-- ============================== RECIPE BOOK ============================== -->
+      <section id="screen-recipes" class="screen">
+        <div class="recipes-card">
+          <div class="recipes-head">
+            <h2 class="result-name">Recipe Book</h2>
+            <button id="btn-recipes-back" class="btn btn-ghost btn-sm">← Back</button>
+          </div>
+          <p class="recipes-sub">Every cocktail in the bar — glass, method, build and garnish.</p>
+          <div class="recipes-list" id="recipes-list"></div>
+        </div>
+      </section>
+
+      <!-- ============================== ENDLESS FINISH ============================== -->
+      <section id="screen-endless" class="screen">
+        <div class="result-card">
+          <p class="eyebrow">Shift over</p>
+          <h2 class="result-name">Closing Time 🍸</h2>
+          <div class="endless-stats" id="endless-stats"></div>
+          <p class="finish-rank" id="endless-rank">Rank</p>
+          <p class="best-score" id="endless-best"></p>
+          <div class="result-actions">
+            <button id="btn-endless-menu" class="btn btn-ghost">Menu</button>
+            <button id="btn-endless-again" class="btn btn-primary btn-lg">Work another shift →</button>
+          </div>
+        </div>
+      </section>
+
       <!-- ============================== FINISH SCREEN ============================== -->
       <section id="screen-finish" class="screen">
         <div class="result-card">
@@ -192,12 +230,14 @@
         <div class="modal-box">
           <h3>How to play</h3>
           <ol class="howto">
+            <li>New here? Start with <strong>📚 Training</strong> — a guided lesson that walks you through making your first cocktail.</li>
             <li>Read the <strong>customer order</strong> at the top.</li>
             <li>Work through the steps like a bartender: <strong>glass → pour → mix → garnish</strong>.</li>
             <li>Add <strong>ingredients</strong> and dial in each amount in <strong>ml</strong> (some use dashes/leaves). Watch them pour in.</li>
             <li>Pick a <strong>method</strong> and a <strong>garnish</strong>, then <strong>Serve</strong>.</li>
             <li>Earn up to <strong>3 stars</strong> per drink. Pours within a small tolerance still count!</li>
-            <li><strong>Basic</strong> mode auto-picks the glass &amp; method; <strong>Advanced</strong> leaves it all to you.</li>
+            <li><strong>Basic</strong> auto-picks the glass &amp; method; <strong>Advanced</strong> leaves it all to you; <strong>Mixologist</strong> is a free-pour sandbox.</li>
+            <li>Try <strong>🔥 Endless Shift</strong> — serve random orders for points until you run out of lives. Peek at the <strong>Recipe Book</strong> anytime.</li>
           </ol>
           <button id="btn-close-how" class="btn btn-primary">Got it</button>
         </div>

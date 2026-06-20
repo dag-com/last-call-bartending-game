@@ -89,6 +89,30 @@ export const INGREDIENTS = [
 
   // Herbs & spice
   { id: "mint", name: "Mint Leaves", unit: "leaf", cat: "Herbs & Spice", color: "#3f9140", mx: { fam: "herb", abv: 0, sw: 0, so: 0, bi: 0.1, pot: 3 } },
+  { id: "hot_sauce", name: "Hot Sauce", unit: "dash", cat: "Herbs & Spice", color: "#b21e1e", mx: { fam: "spice", abv: 0, sw: 0, so: 0.1, bi: 0.3, pot: 4 } },
+
+  // More spirits
+  { id: "cachaca", name: "Cachaça", unit: "ml", cat: "Spirits", color: "#f0ead2", mx: { fam: "spirit", abv: 40, sw: 0, so: 0, bi: 0, pot: 1 } },
+  { id: "scotch", name: "Scotch Whisky", unit: "ml", cat: "Spirits", color: "#c98a3a", mx: { fam: "spirit", abv: 40, sw: 0.03, so: 0, bi: 0.05, pot: 1 } },
+  { id: "pisco", name: "Pisco", unit: "ml", cat: "Spirits", color: "#f3ecd8", mx: { fam: "spirit", abv: 40, sw: 0.02, so: 0, bi: 0, pot: 1 } },
+  { id: "absinthe", name: "Absinthe", unit: "ml", cat: "Spirits", color: "#b6d99a", mx: { fam: "spirit", abv: 60, sw: 0, so: 0, bi: 0.3, pot: 3 } },
+
+  // More liqueurs
+  { id: "peach_schnapps", name: "Peach Schnapps", unit: "ml", cat: "Liqueurs", color: "#f6c98a", mx: { fam: "liqueur", abv: 18, sw: 0.8, so: 0.05, bi: 0, pot: 1.2 } },
+  { id: "blue_curacao", name: "Blue Curaçao", unit: "ml", cat: "Liqueurs", color: "#1f8fd0", mx: { fam: "liqueur", abv: 24, sw: 0.8, so: 0.05, bi: 0, pot: 1.2 } },
+  { id: "creme_de_cassis", name: "Crème de Cassis", unit: "ml", cat: "Liqueurs", color: "#5b1f3a", mx: { fam: "liqueur", abv: 15, sw: 0.9, so: 0.1, bi: 0, pot: 1.3 } },
+  { id: "creme_de_violette", name: "Crème de Violette", unit: "ml", cat: "Liqueurs", color: "#7a5ea8", mx: { fam: "liqueur", abv: 20, sw: 0.8, so: 0, bi: 0, pot: 1.2 } },
+  { id: "cherry_liqueur", name: "Cherry Liqueur", unit: "ml", cat: "Liqueurs", color: "#8e1f2a", mx: { fam: "liqueur", abv: 24, sw: 0.8, so: 0.05, bi: 0.05, pot: 1.2 } },
+  { id: "raspberry_liqueur", name: "Raspberry Liqueur", unit: "ml", cat: "Liqueurs", color: "#6a0f33", mx: { fam: "liqueur", abv: 16, sw: 0.85, so: 0.1, bi: 0, pot: 1.3 } },
+  { id: "drambuie", name: "Drambuie", unit: "ml", cat: "Liqueurs", color: "#b9742a", mx: { fam: "liqueur", abv: 40, sw: 0.7, so: 0, bi: 0.05, pot: 1.2 } },
+
+  // More juices
+  { id: "tomato_juice", name: "Tomato Juice", unit: "ml", cat: "Juices", color: "#c0392b", mx: { fam: "juice", abv: 0, sw: 0.1, so: 0.3, bi: 0.1, pot: 1 } },
+  { id: "passion_fruit", name: "Passion Fruit Purée", unit: "ml", cat: "Juices", color: "#f2a31a", mx: { fam: "juice", abv: 0, sw: 0.5, so: 0.5, bi: 0, pot: 1.1 } },
+  { id: "peach_puree", name: "Peach Purée", unit: "ml", cat: "Juices", color: "#f4b073", mx: { fam: "juice", abv: 0, sw: 0.6, so: 0.2, bi: 0, pot: 1 } },
+
+  // More syrups
+  { id: "raspberry_syrup", name: "Raspberry Syrup", unit: "ml", cat: "Syrups & Sweet", color: "#9e1f44", mx: { fam: "syrup", abv: 0, sw: 0.9, so: 0.1, bi: 0, pot: 2 } },
 ];
 
 export const GARNISHES = [
@@ -111,6 +135,285 @@ export const GARNISHES = [
 // ============================================================================
 
 export const RECIPES = [
+  // ---- Easy builds (pour & stir, no technique) ----
+  {
+    id: "gin_tonic",
+    name: "Gin & Tonic",
+    order: "Crisp and clean — a measure of gin, plenty of tonic over ice, with lime.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "gin", amount: 50 },
+      { id: "tonic_water", amount: 150 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "screwdriver",
+    name: "Screwdriver",
+    order: "The simplest classic — vodka and fresh orange juice over ice.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 50 },
+      { id: "orange_juice", amount: 120 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "cuba_libre",
+    name: "Cuba Libre",
+    order: "Rum and cola lifted with a squeeze of lime. Built tall over ice.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "white_rum", amount: 50 },
+      { id: "cola", amount: 120 },
+      { id: "lime_juice", amount: 10 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "moscow_mule",
+    name: "Moscow Mule",
+    order: "Spicy ginger beer, vodka and lime, built over ice. Served long.",
+    glass: "collins",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 50 },
+      { id: "lime_juice", amount: 15 },
+      { id: "ginger_beer", amount: 120 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "dark_n_stormy",
+    name: "Dark 'n' Stormy",
+    order: "Dark rum floated over spicy ginger beer with a hit of lime.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "dark_rum", amount: 50 },
+      { id: "ginger_beer", amount: 120 },
+      { id: "lime_juice", amount: 10 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "tequila_sunrise",
+    name: "Tequila Sunrise",
+    order: "Tequila and orange juice with grenadine sinking to the bottom.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "tequila", amount: 45 },
+      { id: "orange_juice", amount: 90 },
+      { id: "grenadine", amount: 15 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "paloma",
+    name: "Paloma",
+    order: "Tequila with tart grapefruit, lime and a splash of soda. Mexico's favourite.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "tequila", amount: 50 },
+      { id: "grapefruit_juice", amount: 60 },
+      { id: "lime_juice", amount: 10 },
+      { id: "soda_water", amount: 60 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "mimosa",
+    name: "Mimosa",
+    order: "Equal parts sparkling wine and orange juice. Brunch in a glass.",
+    glass: "coupe",
+    method: "build",
+    ingredients: [
+      { id: "prosecco", amount: 90 },
+      { id: "orange_juice", amount: 90 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "bellini",
+    name: "Bellini",
+    order: "Peach purée topped gently with prosecco. A Venetian icon.",
+    glass: "coupe",
+    method: "build",
+    ingredients: [
+      { id: "peach_puree", amount: 50 },
+      { id: "prosecco", amount: 100 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "kir_royale",
+    name: "Kir Royale",
+    order: "A whisper of blackcurrant liqueur lifted by sparkling wine.",
+    glass: "coupe",
+    method: "build",
+    ingredients: [
+      { id: "creme_de_cassis", amount: 10 },
+      { id: "prosecco", amount: 120 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "black_russian",
+    name: "Black Russian",
+    order: "Just vodka and coffee liqueur, built over ice. Dark and simple.",
+    glass: "rocks",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 50 },
+      { id: "coffee_liqueur", amount: 25 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "white_russian",
+    name: "White Russian",
+    order: "Vodka and coffee liqueur with a float of cream. The Dude abides.",
+    glass: "rocks",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 50 },
+      { id: "coffee_liqueur", amount: 20 },
+      { id: "cream", amount: 30 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "americano",
+    name: "Americano",
+    order: "Campari and sweet vermouth lengthened with soda. A bittersweet long drink.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "campari", amount: 30 },
+      { id: "sweet_vermouth", amount: 30 },
+      { id: "soda_water", amount: 90 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "aperol_spritz",
+    name: "Aperol Spritz",
+    order: "3-2-1: prosecco, Aperol and a splash of soda over ice. Aperitivo hour.",
+    glass: "wine",
+    method: "build",
+    ingredients: [
+      { id: "aperol", amount: 60 },
+      { id: "prosecco", amount: 90 },
+      { id: "soda_water", amount: 30 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "tom_collins",
+    name: "Tom Collins",
+    order: "Gin, lemon and sugar lengthened with soda over ice. Tall and refreshing.",
+    glass: "collins",
+    method: "build",
+    ingredients: [
+      { id: "gin", amount: 50 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "sugar_syrup", amount: 15 },
+      { id: "soda_water", amount: 60 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "sex_on_the_beach",
+    name: "Sex on the Beach",
+    order: "Vodka and peach schnapps with orange and cranberry. Fruity and easy.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 40 },
+      { id: "peach_schnapps", amount: 20 },
+      { id: "orange_juice", amount: 60 },
+      { id: "cranberry_juice", amount: 60 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "blue_lagoon",
+    name: "Blue Lagoon",
+    order: "Vodka and electric-blue curaçao lengthened with lemon and soda.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 40 },
+      { id: "blue_curacao", amount: 20 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "soda_water", amount: 90 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "bramble",
+    name: "Bramble",
+    order: "Gin sour built over crushed ice, drizzled with berry liqueur.",
+    glass: "rocks",
+    method: "build",
+    ingredients: [
+      { id: "gin", amount: 50 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "sugar_syrup", amount: 12 },
+      { id: "raspberry_liqueur", amount: 15 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "bloody_mary",
+    name: "Bloody Mary",
+    order: "Vodka and tomato juice with lemon and a few dashes of hot sauce. Savoury and bold.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 45 },
+      { id: "tomato_juice", amount: 90 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "hot_sauce", amount: 2 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "godfather",
+    name: "Godfather",
+    order: "Scotch sweetened with a measure of amaretto, over ice. Two ingredients, big flavour.",
+    glass: "rocks",
+    method: "build",
+    ingredients: [
+      { id: "scotch", amount: 45 },
+      { id: "amaretto", amount: 25 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "long_island",
+    name: "Long Island Iced Tea",
+    order: "Five spirits, lemon and a top of cola. Deceptively easy-drinking — go careful.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "vodka", amount: 15 },
+      { id: "gin", amount: 15 },
+      { id: "white_rum", amount: 15 },
+      { id: "tequila", amount: 15 },
+      { id: "triple_sec", amount: 15 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "cola", amount: 60 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+
+  // ---- Shaken sours (citrus, technique) ----
   {
     id: "daiquiri",
     name: "Daiquiri",
@@ -123,19 +426,6 @@ export const RECIPES = [
       { id: "sugar_syrup", amount: 15 },
     ],
     garnish: ["lime_wheel"],
-  },
-  {
-    id: "negroni",
-    name: "Negroni",
-    order: "Equal parts, bittersweet and stirred over ice. A bracing aperitivo.",
-    glass: "rocks",
-    method: "stir",
-    ingredients: [
-      { id: "gin", amount: 30 },
-      { id: "campari", amount: 30 },
-      { id: "sweet_vermouth", amount: 30 },
-    ],
-    garnish: ["orange_peel"],
   },
   {
     id: "margarita",
@@ -151,17 +441,45 @@ export const RECIPES = [
     garnish: ["salt_rim", "lime_wheel"],
   },
   {
-    id: "old_fashioned",
-    name: "Old Fashioned",
-    order: "Bourbon, a little sugar and bitters, stirred down over ice. Timeless.",
+    id: "gimlet",
+    name: "Gimlet",
+    order: "Gin sharpened with lime and a little sugar, shaken and served up.",
+    glass: "coupe",
+    method: "shake",
+    ingredients: [
+      { id: "gin", amount: 60 },
+      { id: "lime_juice", amount: 20 },
+      { id: "sugar_syrup", amount: 15 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "whiskey_sour",
+    name: "Whiskey Sour",
+    order: "Bourbon, lemon and sugar with a silky egg-white foam. Shaken hard.",
     glass: "rocks",
-    method: "stir",
+    method: "shake",
     ingredients: [
       { id: "bourbon", amount: 60 },
-      { id: "sugar_syrup", amount: 10 },
-      { id: "angostura", amount: 2 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "sugar_syrup", amount: 15 },
+      { id: "egg_white", amount: 1 },
     ],
-    garnish: ["orange_peel"],
+    garnish: ["cherry", "lemon_twist"],
+  },
+  {
+    id: "amaretto_sour",
+    name: "Amaretto Sour",
+    order: "Nutty amaretto balanced by lemon and a glossy egg-white foam.",
+    glass: "rocks",
+    method: "shake",
+    ingredients: [
+      { id: "amaretto", amount: 50 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "sugar_syrup", amount: 10 },
+      { id: "egg_white", amount: 1 },
+    ],
+    garnish: ["cherry"],
   },
   {
     id: "cosmopolitan",
@@ -178,6 +496,185 @@ export const RECIPES = [
     garnish: ["lime_wheel"],
   },
   {
+    id: "french_75",
+    name: "French 75",
+    order: "Gin, lemon and sugar shaken cold, then topped with sparkling wine. Elegant.",
+    glass: "coupe",
+    method: "shake",
+    ingredients: [
+      { id: "gin", amount: 30 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "sugar_syrup", amount: 10 },
+      { id: "prosecco", amount: 60 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "clover_club",
+    name: "Clover Club",
+    order: "Gin, lemon and raspberry shaken with egg white to a pink, frothy finish.",
+    glass: "coupe",
+    method: "shake",
+    ingredients: [
+      { id: "gin", amount: 45 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "raspberry_syrup", amount: 15 },
+      { id: "egg_white", amount: 1 },
+    ],
+    garnish: ["cherry"],
+  },
+  {
+    id: "pisco_sour",
+    name: "Pisco Sour",
+    order: "Pisco, lemon and sugar shaken with egg white, finished with bitters on the foam.",
+    glass: "coupe",
+    method: "shake",
+    ingredients: [
+      { id: "pisco", amount: 60 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "sugar_syrup", amount: 20 },
+      { id: "egg_white", amount: 1 },
+      { id: "angostura", amount: 2 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "aviation",
+    name: "Aviation",
+    order: "Gin, maraschino and a touch of violette with lemon — a pale lavender sour.",
+    glass: "coupe",
+    method: "shake",
+    ingredients: [
+      { id: "gin", amount: 45 },
+      { id: "maraschino", amount: 15 },
+      { id: "creme_de_violette", amount: 10 },
+      { id: "lemon_juice", amount: 15 },
+    ],
+    garnish: ["cherry"],
+  },
+  {
+    id: "corpse_reviver",
+    name: "Corpse Reviver #2",
+    order: "Equal parts gin, triple sec, dry vermouth and lemon with an absinthe rinse.",
+    glass: "coupe",
+    method: "shake",
+    ingredients: [
+      { id: "gin", amount: 25 },
+      { id: "triple_sec", amount: 25 },
+      { id: "dry_vermouth", amount: 25 },
+      { id: "lemon_juice", amount: 25 },
+      { id: "absinthe", amount: 2 },
+    ],
+    garnish: ["cherry"],
+  },
+
+  // ---- Stirred & spirit-forward ----
+  {
+    id: "negroni",
+    name: "Negroni",
+    order: "Equal parts, bittersweet and stirred over ice. A bracing aperitivo.",
+    glass: "rocks",
+    method: "stir",
+    ingredients: [
+      { id: "gin", amount: 30 },
+      { id: "campari", amount: 30 },
+      { id: "sweet_vermouth", amount: 30 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "boulevardier",
+    name: "Boulevardier",
+    order: "A Negroni's whiskey cousin — bourbon, Campari and sweet vermouth, stirred.",
+    glass: "rocks",
+    method: "stir",
+    ingredients: [
+      { id: "bourbon", amount: 30 },
+      { id: "campari", amount: 30 },
+      { id: "sweet_vermouth", amount: 30 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "rob_roy",
+    name: "Rob Roy",
+    order: "A Manhattan made with Scotch — stirred with sweet vermouth and bitters.",
+    glass: "coupe",
+    method: "stir",
+    ingredients: [
+      { id: "scotch", amount: 60 },
+      { id: "sweet_vermouth", amount: 25 },
+      { id: "angostura", amount: 2 },
+    ],
+    garnish: ["cherry"],
+  },
+  {
+    id: "rusty_nail",
+    name: "Rusty Nail",
+    order: "Scotch sweetened with honeyed Drambuie, stirred down over ice.",
+    glass: "rocks",
+    method: "stir",
+    ingredients: [
+      { id: "scotch", amount: 45 },
+      { id: "drambuie", amount: 25 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "old_fashioned",
+    name: "Old Fashioned",
+    order: "Bourbon, a little sugar and bitters, stirred down over ice. Timeless.",
+    glass: "rocks",
+    method: "stir",
+    ingredients: [
+      { id: "bourbon", amount: 60 },
+      { id: "sugar_syrup", amount: 10 },
+      { id: "angostura", amount: 2 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "manhattan",
+    name: "Manhattan",
+    order: "Rye and sweet vermouth, stirred down with a couple dashes of bitters, served up.",
+    glass: "coupe",
+    method: "stir",
+    ingredients: [
+      { id: "rye_whiskey", amount: 60 },
+      { id: "sweet_vermouth", amount: 25 },
+      { id: "angostura", amount: 2 },
+    ],
+    garnish: ["cherry"],
+  },
+  {
+    id: "sazerac",
+    name: "Sazerac",
+    order: "Rye and sugar stirred with bitters in an absinthe-rinsed glass. New Orleans royalty.",
+    glass: "rocks",
+    method: "stir",
+    ingredients: [
+      { id: "rye_whiskey", amount: 60 },
+      { id: "sugar_syrup", amount: 10 },
+      { id: "angostura", amount: 3 },
+      { id: "absinthe", amount: 2 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "dry_martini",
+    name: "Dry Martini",
+    order: "Gin kissed with dry vermouth, stirred ice-cold and served up. Pure finesse.",
+    glass: "martini",
+    method: "stir",
+    ingredients: [
+      { id: "gin", amount: 60 },
+      { id: "dry_vermouth", amount: 10 },
+    ],
+    garnish: ["olive", "lemon_twist"],
+  },
+
+  // ---- Muddled ----
+  {
     id: "mojito",
     name: "Mojito",
     order: "Muddle mint with lime and sugar, build over ice with rum, top with soda.",
@@ -191,6 +688,108 @@ export const RECIPES = [
       { id: "mint", amount: 8 },
     ],
     garnish: ["mint_sprig"],
+  },
+  {
+    id: "caipirinha",
+    name: "Caipirinha",
+    order: "Muddle lime and sugar, then drown in cachaça over crushed ice. Brazil's national drink.",
+    glass: "rocks",
+    method: "muddle",
+    ingredients: [
+      { id: "cachaca", amount: 60 },
+      { id: "lime_juice", amount: 30 },
+      { id: "sugar_syrup", amount: 20 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "mint_julep",
+    name: "Mint Julep",
+    order: "Muddle mint with sugar, pack with crushed ice and pour over bourbon. Derby day.",
+    glass: "rocks",
+    method: "muddle",
+    ingredients: [
+      { id: "bourbon", amount: 60 },
+      { id: "sugar_syrup", amount: 15 },
+      { id: "mint", amount: 10 },
+    ],
+    garnish: ["mint_sprig"],
+  },
+
+  // ---- Tiki, frozen & advanced ----
+  {
+    id: "mai_tai",
+    name: "Mai Tai",
+    order: "Two rums, orange liqueur, almond orgeat and lime — shaken. Tiki done right.",
+    glass: "rocks",
+    method: "shake",
+    ingredients: [
+      { id: "white_rum", amount: 40 },
+      { id: "dark_rum", amount: 20 },
+      { id: "triple_sec", amount: 15 },
+      { id: "orgeat", amount: 15 },
+      { id: "lime_juice", amount: 20 },
+    ],
+    garnish: ["mint_sprig", "lime_wheel"],
+  },
+  {
+    id: "painkiller",
+    name: "Painkiller",
+    order: "Dark rum with pineapple, orange and coconut cream — shaken into a tropical haze.",
+    glass: "hurricane",
+    method: "shake",
+    ingredients: [
+      { id: "dark_rum", amount: 60 },
+      { id: "pineapple_juice", amount: 90 },
+      { id: "orange_juice", amount: 30 },
+      { id: "coconut_cream", amount: 30 },
+    ],
+    garnish: ["pineapple_wedge"],
+  },
+  {
+    id: "singapore_sling",
+    name: "Singapore Sling",
+    order: "Gin, cherry liqueur and a tangle of pineapple, lime and grenadine. A tropical epic.",
+    glass: "hurricane",
+    method: "shake",
+    ingredients: [
+      { id: "gin", amount: 30 },
+      { id: "cherry_liqueur", amount: 15 },
+      { id: "triple_sec", amount: 8 },
+      { id: "pineapple_juice", amount: 60 },
+      { id: "lime_juice", amount: 15 },
+      { id: "grenadine", amount: 8 },
+    ],
+    garnish: ["cherry", "pineapple_wedge"],
+  },
+  {
+    id: "hurricane_cocktail",
+    name: "Hurricane",
+    order: "Light and dark rum with passion fruit, citrus and grenadine. A New Orleans storm.",
+    glass: "hurricane",
+    method: "shake",
+    ingredients: [
+      { id: "white_rum", amount: 30 },
+      { id: "dark_rum", amount: 30 },
+      { id: "passion_fruit", amount: 30 },
+      { id: "orange_juice", amount: 30 },
+      { id: "lime_juice", amount: 15 },
+      { id: "grenadine", amount: 10 },
+    ],
+    garnish: ["orange_peel", "cherry"],
+  },
+  {
+    id: "pina_colada",
+    name: "Piña Colada",
+    order: "Rum, coconut cream and pineapple, blended frozen. A beach in a glass.",
+    glass: "hurricane",
+    method: "blend",
+    ingredients: [
+      { id: "white_rum", amount: 50 },
+      { id: "coconut_cream", amount: 30 },
+      { id: "pineapple_juice", amount: 90 },
+    ],
+    garnish: ["pineapple_wedge"],
   },
   {
     id: "espresso_martini",
@@ -207,17 +806,35 @@ export const RECIPES = [
     garnish: ["coffee_beans"],
   },
   {
-    id: "dry_martini",
-    name: "Dry Martini",
-    order: "Gin kissed with dry vermouth, stirred ice-cold and served up. Pure finesse.",
-    glass: "martini",
-    method: "stir",
+    id: "penicillin",
+    name: "Penicillin",
+    order: "Scotch with lemon and honey for a modern, smoky-sweet sour. Shaken.",
+    glass: "rocks",
+    method: "shake",
     ingredients: [
-      { id: "gin", amount: 60 },
-      { id: "dry_vermouth", amount: 10 },
+      { id: "scotch", amount: 60 },
+      { id: "lemon_juice", amount: 20 },
+      { id: "honey_syrup", amount: 20 },
     ],
-    garnish: ["olive", "lemon_twist"],
+    garnish: ["lemon_twist"],
   },
+];
+
+// ============================================================================
+// Customers — the people who order drinks. Adds personality to each round.
+// `lines` use {drink} as a placeholder for the cocktail name.
+// ============================================================================
+export const CUSTOMERS = [
+  { name: "Marco", emoji: "🧔", lines: ["Rough day. Make me a {drink}, would you?", "A {drink} — and don't be shy with it."] },
+  { name: "Lena", emoji: "👩", lines: ["Ooh, I'll have a {drink}, please!", "Feeling fancy tonight — a {drink} for me."] },
+  { name: "Sofia", emoji: "👩‍🦰", lines: ["Could I get a {drink} when you have a sec?", "One {drink}, easy on the rush."] },
+  { name: "James", emoji: "👨‍💼", lines: ["A {drink}, my good bartender.", "Long meeting. I've earned a {drink}."] },
+  { name: "Priya", emoji: "👩‍🦱", lines: ["I've heard your {drink} is the best — prove it!", "Make it a {drink}, please."] },
+  { name: "Tomás", emoji: "🧑", lines: ["Hit me with a {drink}.", "A {drink}, and keep 'em coming."] },
+  { name: "Yuki", emoji: "🧑‍🎤", lines: ["A {drink} to celebrate!", "Let's do a {drink} tonight."] },
+  { name: "Greta", emoji: "👵", lines: ["Back in my day we made a proper {drink}. Let's see yours.", "A {drink}, dear, when you're ready."] },
+  { name: "Dmitri", emoji: "🕴️", lines: ["One {drink}. Make it count.", "A {drink}. I'm watching the technique."] },
+  { name: "Nina", emoji: "💁‍♀️", lines: ["Surprise me— actually, a {drink}.", "A {drink} sounds perfect right now."] },
 ];
 
 // ============================================================================
@@ -225,16 +842,9 @@ export const RECIPES = [
 // Built from the campaign recipes plus a few extra well-known builds.
 // Matching is by ingredient set + rough proportions, so amounts are reference.
 // ============================================================================
-const EXTRA_CLASSICS = [
-  { name: "Gin & Tonic", glass: "highball", method: "build", ingredients: [{ id: "gin", amount: 50 }, { id: "tonic_water", amount: 150 }] },
-  { name: "Cuba Libre", glass: "highball", method: "build", ingredients: [{ id: "white_rum", amount: 50 }, { id: "cola", amount: 120 }, { id: "lime_juice", amount: 10 }] },
-  { name: "Whiskey Sour", glass: "rocks", method: "shake", ingredients: [{ id: "bourbon", amount: 60 }, { id: "lemon_juice", amount: 25 }, { id: "sugar_syrup", amount: 15 }] },
-  { name: "Aperol Spritz", glass: "wine", method: "build", ingredients: [{ id: "aperol", amount: 60 }, { id: "prosecco", amount: 90 }, { id: "soda_water", amount: 30 }] },
-  { name: "Americano", glass: "highball", method: "build", ingredients: [{ id: "campari", amount: 30 }, { id: "sweet_vermouth", amount: 30 }, { id: "soda_water", amount: 60 }] },
-  { name: "Moscow Mule", glass: "highball", method: "build", ingredients: [{ id: "vodka", amount: 50 }, { id: "lime_juice", amount: 15 }, { id: "ginger_beer", amount: 120 }] },
-  { name: "Piña Colada", glass: "hurricane", method: "blend", ingredients: [{ id: "white_rum", amount: 50 }, { id: "coconut_cream", amount: 30 }, { id: "pineapple_juice", amount: 90 }] },
-  { name: "Paloma", glass: "highball", method: "build", ingredients: [{ id: "tequila", amount: 50 }, { id: "grapefruit_juice", amount: 60 }, { id: "lime_juice", amount: 10 }, { id: "soda_water", amount: 60 }] },
-];
+// Extra builds not already covered by the 50-strong campaign list. The campaign
+// now spans the canonical top-50, so all classics are sourced from RECIPES.
+const EXTRA_CLASSICS = [];
 
 export const CLASSICS = [
   ...RECIPES.map((r) => ({ name: r.name, glass: r.glass, method: r.method, ingredients: r.ingredients })),
