@@ -10,10 +10,14 @@ import {
   GARNISH_BY_ID,
 } from "./data.js";
 import { Sound } from "./sound.js";
+import * as Glass from "./glass.js";
+import { evaluate } from "./mixology.js";
 
 // ============================ Game state ============================
 const state = {
-  difficulty: "basic", // 'basic' | 'advanced'
+  difficulty: "basic", // 'basic' | 'advanced' | 'mixologist'
+  mode: "campaign", // 'campaign' | 'mixologist' | 'challenge'
+  challenge: null, // recipe object when recreating a saved invention
   stage: 0,
   totalScore: 0,
   starsEarned: 0,
@@ -22,6 +26,8 @@ const state = {
   mixed: false, // true once a shake/stir/blend has blended the liquids
   build: emptyBuild(),
 };
+
+const STRICTNESS = "balanced";
 
 function emptyBuild() {
   return { glass: null, method: null, garnish: null, ingredients: [] };
@@ -133,89 +139,44 @@ function renderStation() {
   mount.innerHTML = "";
   const g = currentGlass();
   if (!g) {
-    mount.innerHTML = `<div class="glass-ghost">Select a glass<br />to begin</div>`;
+    mount.innerHTML = `<div class="glass-ghost"><span>🍸</span>Select a glass<br />to begin</div>`;
     return;
   }
-  const glass = document.createElement("div");
-  glass.className = `glass tpl-${g.tpl}`;
-
-  const bowl = document.createElement("div");
-  bowl.className = "bowl";
-  bowl.style.width = g.w + "px";
-  bowl.style.height = g.h + "px";
-  const stack = document.createElement("div");
-  stack.className = "liquid-stack";
-  bowl.appendChild(stack);
-  glass.appendChild(bowl);
-
-  if (g.stem) {
-    const stem = document.createElement("div");
-    stem.className = "stem";
-    const foot = document.createElement("div");
-    foot.className = "foot";
-    glass.appendChild(stem);
-    glass.appendChild(foot);
-  }
-  mount.appendChild(glass);
-  updateLiquid();
+  const svg = Glass.buildGlass(g);
+  mount.appendChild(svg);
+  updateLiquid(false);
   applyGarnishVisual();
 }
 
-function updateLiquid() {
-  const stack = $("#glass-mount .liquid-stack");
-  const g = currentGlass();
-  if (!stack || !g) return;
-
+// Compute the liquid bands + fill fraction for the current build.
+function computeLiquid(g) {
+  const ML_EQUIV = 6; // visual volume a non-ml item (mint/bitters) contributes
   const mlIngs = state.build.ingredients.filter((i) => INGREDIENT_BY_ID[i.id].unit === "ml");
   const nonMl = state.build.ingredients.filter((i) => INGREDIENT_BY_ID[i.id].unit !== "ml");
-  const totalMl = mlIngs.reduce((s, i) => s + i.amount, 0);
-  const maxFill = g.h * 0.94;
-  const fillPx = totalMl > 0 ? Math.min(maxFill, (totalMl / g.cap) * maxFill) : 0;
+  const ordered = [...mlIngs, ...nonMl];
+  const weight = (i) => (INGREDIENT_BY_ID[i.id].unit === "ml" ? i.amount : ML_EQUIV);
+  const totalWeight = ordered.reduce((s, i) => s + weight(i), 0);
+  const effectiveMl = mlIngs.reduce((s, i) => s + i.amount, 0) + nonMl.length * ML_EQUIV;
+  const fillFrac = effectiveMl > 0 ? Math.max(0.05, Math.min(0.95, effectiveMl / g.cap)) : 0;
 
-  // Mixed: a single uniform layer of the blended colour.
+  if (totalWeight === 0) return { bands: [], fillFrac: 0 };
+
   if (state.mixed) {
-    stack.innerHTML = "";
-    const layer = document.createElement("div");
-    layer.className = "liquid-layer top-layer";
-    layer.dataset.id = "__mix__";
-    layer.style.backgroundColor = mixColor(state.build.ingredients);
-    layer.style.height = "0px";
-    stack.appendChild(layer);
-    const target = Math.max(10, fillPx + nonMl.length * 8);
-    requestAnimationFrame(() => (layer.style.height = target + "px"));
-    return;
+    return { bands: [{ color: mixColor(state.build.ingredients), frac: 1 }], fillFrac };
   }
+  const bands = ordered.map((i) => ({
+    color: INGREDIENT_BY_ID[i.id].color,
+    frac: weight(i) / totalWeight,
+  }));
+  return { bands, fillFrac };
+}
 
-  // Layered: one band per ingredient (proportional for ml, fixed for specials).
-  const desired = [
-    ...mlIngs.map((i) => ({ id: i.id, px: totalMl > 0 ? (i.amount / totalMl) * fillPx : 0 })),
-    ...nonMl.map((i) => ({ id: i.id, px: 8 })),
-  ];
-  const existing = new Map([...stack.children].map((c) => [c.dataset.id, c]));
-  desired.forEach((d) => {
-    let el = existing.get(d.id);
-    if (!el) {
-      el = document.createElement("div");
-      el.className = "liquid-layer";
-      el.dataset.id = d.id;
-      el.style.height = "0px";
-      el.style.backgroundColor = INGREDIENT_BY_ID[d.id].color;
-      stack.appendChild(el);
-      requestAnimationFrame(() => (el.style.height = d.px + "px"));
-    } else {
-      el.style.backgroundColor = INGREDIENT_BY_ID[d.id].color;
-      el.style.height = d.px + "px";
-    }
-    existing.delete(d.id);
-  });
-  existing.forEach((el) => el.remove());
-  // Re-order DOM to match desired (column-reverse: last child = top).
-  desired.forEach((d) => {
-    const el = stack.querySelector(`[data-id="${CSS.escape(d.id)}"]`);
-    if (el) stack.appendChild(el);
-  });
-  [...stack.children].forEach((c) => c.classList.remove("top-layer"));
-  if (stack.lastElementChild) stack.lastElementChild.classList.add("top-layer");
+function updateLiquid(animate = true) {
+  const svg = $("#glass-mount svg.glass-svg");
+  const g = currentGlass();
+  if (!svg || !g) return;
+  const { bands, fillFrac } = computeLiquid(g);
+  Glass.setLiquid(svg, bands, fillFrac, animate);
 }
 
 function animatePour(id) {
@@ -225,26 +186,39 @@ function animatePour(id) {
   void stream.offsetWidth; // reflow to restart animation
   stream.classList.add("is-pouring");
   setTimeout(() => stream.classList.remove("is-pouring"), 720);
+  spawnSplash(INGREDIENT_BY_ID[id].color);
   Sound.pour();
-  updateLiquid();
+  updateLiquid(true);
+}
+
+// Splash droplets at the glass mouth.
+function spawnSplash(color) {
+  const station = $(".station");
+  const mouth = $("#glass-mount");
+  if (!station || !mouth) return;
+  const sRect = station.getBoundingClientRect();
+  const mRect = mouth.getBoundingClientRect();
+  const cxPct = ((mRect.left + mRect.width / 2 - sRect.left) / sRect.width) * 100;
+  const topPx = mRect.top - sRect.top + Math.max(10, mRect.height * 0.18);
+  for (let i = 0; i < 7; i++) {
+    const d = document.createElement("span");
+    d.className = "droplet";
+    d.style.background = color;
+    d.style.left = cxPct + "%";
+    d.style.top = topPx + "px";
+    d.style.setProperty("--dx", (Math.random() * 60 - 30).toFixed(0) + "px");
+    d.style.setProperty("--dy", (20 + Math.random() * 40).toFixed(0) + "px");
+    d.style.animationDelay = (Math.random() * 0.12).toFixed(2) + "s";
+    station.appendChild(d);
+    setTimeout(() => d.remove(), 700);
+  }
 }
 
 function applyGarnishVisual() {
-  const bowl = $("#glass-mount .bowl");
-  if (!bowl) return;
-  bowl.querySelectorAll(".garnish-badge, .salt-rim").forEach((e) => e.remove());
+  const svg = $("#glass-mount svg.glass-svg");
+  if (!svg) return;
   const gid = state.build.garnish;
-  if (!gid || gid === "none") return;
-  if (gid === "salt_rim") {
-    const rim = document.createElement("div");
-    rim.className = "salt-rim";
-    bowl.appendChild(rim);
-    return;
-  }
-  const badge = document.createElement("div");
-  badge.className = "garnish-badge";
-  badge.textContent = GARNISH_BY_ID[gid].emoji;
-  bowl.appendChild(badge);
+  Glass.setGarnish(svg, gid, gid ? GARNISH_BY_ID[gid].emoji : "");
 }
 
 // ============================ Method animation ============================
@@ -550,9 +524,12 @@ function goBack() {
 
 // ============================ Stage loading ============================
 function loadStage(index) {
+  state.mode = "campaign";
+  state.challenge = null;
   state.stage = index;
   state.build = emptyBuild();
   state.mixed = false;
+  $(".progress-wrap").style.display = "";
   const recipe = RECIPES[index];
 
   // Basic mode: glass & method are chosen automatically.
@@ -581,8 +558,12 @@ function tolerance(unit, target) {
   return 0;
 }
 
+function currentRecipe() {
+  return state.mode === "challenge" && state.challenge ? state.challenge : RECIPES[state.stage];
+}
+
 function scoreBuild() {
-  const recipe = RECIPES[state.stage];
+  const recipe = currentRecipe();
   const feedback = [];
   let points = 0;
   let maxPoints = 0;
@@ -666,6 +647,7 @@ function fb(kind, label, text) {
 let lastResult = null;
 
 function serve() {
+  if (state.mode === "mixologist") { serveMix(); return; }
   lastResult = scoreBuild();
   state.totalScore += lastResult.stagePoints;
   state.starsEarned += lastResult.stars;
@@ -673,8 +655,183 @@ function serve() {
   showResult(lastResult);
 }
 
+// ============================ Mixologist mode ============================
+function cloneBuild(b) {
+  return { glass: b.glass, method: b.method, garnish: b.garnish, ingredients: b.ingredients.map((i) => ({ id: i.id, amount: i.amount })) };
+}
+
+function startMixologist() {
+  state.mode = "mixologist";
+  state.difficulty = "mixologist";
+  state.challenge = null;
+  state.build = emptyBuild();
+  state.mixed = false;
+  state.steps = getSteps("mixologist");
+  state.stepIndex = 0;
+  $(".progress-wrap").style.display = "none";
+  $("#stage-pill").textContent = "Mixologist";
+  $("#diff-pill").textContent = "Sandbox";
+  $("#order-name").textContent = "Invent a Cocktail";
+  $("#order-desc").textContent = "Free pour — choose a glass, add anything you like, pick a method & garnish, then Serve to get it judged.";
+  renderStation();
+  enterStep();
+  showScreen("screen-game");
+}
+
+let lastMix = null;
+function serveMix() {
+  const result = evaluate(state.build, { strictness: STRICTNESS });
+  lastMix = { result, build: cloneBuild(state.build) };
+  if (result.score >= 70) Sound.coin();
+  else if (result.score >= 45) Sound.click();
+  else Sound.fail();
+  showMixResult(result);
+}
+
+function renderFlavorBars(p) {
+  const defs = [
+    ["Strong", p.strong, "#e9b949"],
+    ["Sweet", p.sweet, "#ff9ec4"],
+    ["Sour", p.sour, "#b9d96a"],
+    ["Bitter", p.bitter, "#a98be0"],
+    ["Fizz", p.fizz, "#7fd4e8"],
+  ];
+  $("#flavor-bars").innerHTML = defs
+    .map(([label, v, c]) => `
+      <div class="fbar-row">
+        <span class="fbar-label">${label}</span>
+        <div class="fbar-track"><div class="fbar-fill" style="width:${Math.round(v * 100)}%;background:${c}"></div></div>
+      </div>`)
+    .join("");
+}
+
+function showMixResult(result) {
+  $("#mix-name").textContent = "Your Creation";
+  $("#mix-score").textContent = result.score;
+  $("#mix-verdict").textContent = result.verdict;
+  $("#mix-stars").innerHTML = [0, 1, 2, 3, 4].map((i) => `<span class="${i < result.stars ? "on" : ""}">★</span>`).join("");
+
+  const cl = $("#mix-classic");
+  if (result.classic) {
+    cl.textContent = result.classic.exact
+      ? `🎯 Spot on — you made a ${result.classic.name}!`
+      : `≈ This is basically a ${result.classic.name}.`;
+  } else {
+    cl.textContent = "🍸 An original creation.";
+  }
+
+  $("#mix-note").textContent = result.note;
+  $("#mix-meta").innerHTML = `<span>${result.abv}% ABV</span><span>${result.volume} ml</span><span>${result.family}</span>`;
+  renderFlavorBars(result.profile);
+
+  const tipsEl = $("#mix-tips");
+  tipsEl.innerHTML = "";
+  result.tips.forEach((t) => {
+    const li = document.createElement("li");
+    li.textContent = t;
+    tipsEl.appendChild(li);
+  });
+
+  $("#btn-mix-save").textContent = "Save to My Bar";
+  $("#btn-mix-save").disabled = false;
+  showScreen("screen-mix-result");
+}
+
+// ============================ My Bar (saved inventions) ============================
+const MYBAR_KEY = "lastcall_mybar";
+function getMyBar() {
+  try { return JSON.parse(localStorage.getItem(MYBAR_KEY) || "[]"); } catch (e) { return []; }
+}
+function setMyBar(list) {
+  try { localStorage.setItem(MYBAR_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+}
+function saveInvention(name) {
+  if (!lastMix) return;
+  const list = getMyBar();
+  list.unshift({
+    name,
+    build: lastMix.build,
+    score: lastMix.result.score,
+    verdict: lastMix.result.verdict,
+    family: lastMix.result.family,
+    ts: Date.now(),
+  });
+  setMyBar(list);
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function renderMyBar() {
+  const list = getMyBar();
+  const el = $("#mybar-list");
+  $("#mybar-sub").textContent = list.length
+    ? `${list.length} saved invention${list.length > 1 ? "s" : ""} — recreate one to test your memory.`
+    : "";
+  if (!list.length) {
+    el.innerHTML = `<p class="mybar-empty">No inventions yet. Open <strong>Mixologist</strong> mode, build a drink, and save it here.</p>`;
+    return;
+  }
+  el.innerHTML = "";
+  list.forEach((inv, idx) => {
+    const ings = inv.build.ingredients.map((i) => INGREDIENT_BY_ID[i.id]?.name).filter(Boolean).join(", ");
+    const card = document.createElement("div");
+    card.className = "mybar-item";
+    card.innerHTML = `
+      <div class="mybar-item-main">
+        <div class="mybar-item-top"><span class="mybar-name">${escapeHtml(inv.name)}</span><span class="mybar-badge">${inv.score}/100</span></div>
+        <div class="mybar-meta">${escapeHtml(inv.family)} · ${escapeHtml(inv.verdict)}</div>
+        <div class="mybar-ings">${escapeHtml(ings)}</div>
+      </div>
+      <div class="mybar-item-actions">
+        <button class="btn btn-primary btn-sm" data-act="play">Recreate</button>
+        <button class="btn btn-ghost btn-sm" data-act="del">Delete</button>
+      </div>`;
+    card.querySelector('[data-act="play"]').addEventListener("click", () => playInvention(inv));
+    card.querySelector('[data-act="del"]').addEventListener("click", () => {
+      const l = getMyBar();
+      l.splice(idx, 1);
+      setMyBar(l);
+      renderMyBar();
+      Sound.click();
+    });
+    el.appendChild(card);
+  });
+}
+
+function loadChallenge(recipe) {
+  state.mode = "challenge";
+  state.challenge = recipe;
+  state.difficulty = "advanced";
+  state.build = emptyBuild();
+  state.mixed = false;
+  state.steps = getSteps("advanced");
+  state.stepIndex = 0;
+  $(".progress-wrap").style.display = "none";
+  $("#stage-pill").textContent = "Challenge";
+  $("#diff-pill").textContent = "Recreate";
+  $("#order-name").textContent = recipe.name;
+  $("#order-desc").textContent = "Recreate this invention from memory — match the glass, pour, method & garnish.";
+  renderStation();
+  enterStep();
+  showScreen("screen-game");
+}
+
+function playInvention(inv) {
+  const recipe = {
+    name: inv.name,
+    glass: inv.build.glass,
+    method: inv.build.method,
+    ingredients: inv.build.ingredients.map((i) => ({ id: i.id, amount: i.amount })),
+    garnish: inv.build.garnish && inv.build.garnish !== "none" ? [inv.build.garnish] : ["none"],
+  };
+  state.totalScore = 0;
+  state.starsEarned = 0;
+  displayedScore = 0;
+  loadChallenge(recipe);
+}
+
 function showResult(result) {
-  const recipe = RECIPES[state.stage];
+  const recipe = currentRecipe();
   $("#result-eyebrow").textContent = result.stars >= 1 ? "Stage cleared" : "Needs work";
   $("#result-name").textContent = recipe.name;
 
@@ -701,8 +858,12 @@ function showResult(result) {
     list.appendChild(li);
   });
 
-  const isLast = state.stage === RECIPES.length - 1;
-  $("#btn-next-stage").textContent = isLast ? "See results →" : "Next stage →";
+  if (state.mode === "challenge") {
+    $("#btn-next-stage").textContent = "Back to My Bar";
+  } else {
+    const isLast = state.stage === RECIPES.length - 1;
+    $("#btn-next-stage").textContent = isLast ? "See results →" : "Next stage →";
+  }
   showScreen("screen-result");
 }
 
@@ -749,6 +910,10 @@ document.querySelectorAll(".diff-card").forEach((card) => {
 $("#btn-start").addEventListener("click", () => {
   Sound.init();
   Sound.coin();
+  if (state.difficulty === "mixologist") {
+    startMixologist();
+    return;
+  }
   state.totalScore = 0;
   state.starsEarned = 0;
   displayedScore = 0;
@@ -778,13 +943,70 @@ $("#btn-retry").addEventListener("click", () => {
     state.starsEarned -= lastResult.stars;
     lastResult = null;
   }
+  if (state.mode === "challenge" && state.challenge) {
+    loadChallenge(state.challenge);
+    return;
+  }
   loadStage(state.stage);
 });
 
 $("#btn-next-stage").addEventListener("click", () => {
   lastResult = null;
+  if (state.mode === "challenge") {
+    renderMyBar();
+    showScreen("screen-mybar");
+    return;
+  }
   if (state.stage < RECIPES.length - 1) loadStage(state.stage + 1);
   else showFinish();
+});
+
+// Mixologist result actions
+$("#btn-mix-tweak").addEventListener("click", () => {
+  const idx = state.steps.indexOf("ingredients");
+  state.stepIndex = idx >= 0 ? idx : 0;
+  enterStep();
+  showScreen("screen-game");
+});
+$("#btn-mix-another").addEventListener("click", () => {
+  Sound.click();
+  startMixologist();
+});
+$("#btn-mix-quit").addEventListener("click", () => {
+  renderStartBest();
+  showScreen("screen-start");
+});
+$("#btn-mix-save").addEventListener("click", () => {
+  $("#invent-name").value = "";
+  $("#modal-name").classList.add("is-open");
+  setTimeout(() => $("#invent-name").focus(), 50);
+});
+
+// My Bar
+$("#btn-mybar").addEventListener("click", () => {
+  Sound.init();
+  Sound.click();
+  renderMyBar();
+  showScreen("screen-mybar");
+});
+$("#btn-mybar-back").addEventListener("click", () => showScreen("screen-start"));
+
+// Name modal
+$("#btn-name-cancel").addEventListener("click", () => $("#modal-name").classList.remove("is-open"));
+$("#btn-name-save").addEventListener("click", () => {
+  const name = ($("#invent-name").value || "").trim() || "Untitled";
+  saveInvention(name);
+  $("#modal-name").classList.remove("is-open");
+  $("#mix-name").textContent = name;
+  $("#btn-mix-save").textContent = "Saved ✓";
+  $("#btn-mix-save").disabled = true;
+  Sound.coin();
+});
+$("#modal-name").addEventListener("click", (e) => {
+  if (e.target.id === "modal-name") $("#modal-name").classList.remove("is-open");
+});
+$("#invent-name").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#btn-name-save").click();
 });
 
 $("#btn-replay").addEventListener("click", () => {
