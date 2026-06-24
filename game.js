@@ -4,6 +4,8 @@ import {
   INGREDIENTS,
   GARNISHES,
   RECIPES,
+  MOCKTAILS,
+  SHOTS,
   CUSTOMERS,
   INGREDIENT_BY_ID,
   GLASS_BY_ID,
@@ -13,6 +15,7 @@ import {
 import { Sound } from "./sound.js";
 import * as Glass from "./glass.js";
 import { evaluate } from "./mixology.js";
+import { scoreWithJudges, pickJudges } from "./judges.js";
 
 // ============================ Game state ============================
 const state = {
@@ -35,12 +38,298 @@ const state = {
   lastEndlessIdx: -1,
   customer: null,
   trainingRecipe: null,
+  cotdRecipe: null, // Cocktail of the Day target
+  mixJudges: null, // judging panel result for the current invention
 };
 
 const STRICTNESS = "balanced";
 
 function emptyBuild() {
   return { glass: null, method: null, garnish: null, ingredients: [] };
+}
+
+// ============================ Player profile / age gate ============================
+const PROFILE_KEY = "lastcall_profile";
+const LEGAL_AGE = 18; // drinking-age threshold; under this = mocktails only
+
+function getProfile() {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); } catch (e) { return null; }
+}
+function setProfile(p) {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) { /* ignore */ }
+}
+function isUnderage() {
+  const p = getProfile();
+  return !!p && Number(p.age) < LEGAL_AGE;
+}
+function genId() {
+  return "p_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+// Reflect the saved profile on the start screen (greeting + mocktail badge).
+function applyProfile() {
+  const p = getProfile();
+  const bar = $("#profile-bar");
+  const chip = $("#profile-chip");
+  const banner = $("#mocktail-banner");
+  if (p && bar && chip) {
+    bar.style.display = "";
+    chip.textContent = `👤 ${p.name}${p.age ? " · " + p.age : ""}${isUnderage() ? " · 🧃" : " · 🔞"}`;
+  } else if (bar) {
+    bar.style.display = "none";
+  }
+  if (banner) banner.style.display = isUnderage() ? "" : "none";
+  const footer = $("#start-footer");
+  if (footer) {
+    const noun = isUnderage() ? "mocktails" : "drinks";
+    footer.innerHTML = `🍸 ${drinkPool().length} ${noun} &nbsp;•&nbsp; precision pours &nbsp;•&nbsp; earn your stars`;
+  }
+}
+
+// ============================ Drink pools & difficulty ============================
+// Difficulty is derived from ingredient count + preparation complexity.
+function methodWeight(m) {
+  return { build: 0, stir: 0.5, shake: 0.5, blend: 0.5, muddle: 1 }[m] ?? 0.5;
+}
+function computeDifficulty(r) {
+  const raw = r.ingredients.length + methodWeight(r.method);
+  if (raw <= 2.5) return 1;
+  if (raw <= 3.5) return 2;
+  if (raw <= 4.5) return 3;
+  if (raw <= 5.5) return 4;
+  return 5;
+}
+const TIER_LABEL = { 1: "Easy", 2: "Easy", 3: "Medium", 4: "Hard", 5: "Expert" };
+
+let POOL_ADULT = [];
+let POOL_UNDER = [];
+function tagDrinks(list, kind) {
+  list.forEach((r) => { r.kind = kind; r.diff = computeDifficulty(r); });
+}
+function buildPools() {
+  tagDrinks(RECIPES, "cocktail");
+  tagDrinks(SHOTS, "shot");
+  tagDrinks(MOCKTAILS, "mocktail");
+  // Stable sort easy -> hard (Array.sort is stable in modern engines).
+  POOL_ADULT = [...RECIPES, ...SHOTS].sort((a, b) => a.diff - b.diff);
+  POOL_UNDER = [...MOCKTAILS].sort((a, b) => a.diff - b.diff);
+}
+buildPools();
+function drinkPool() {
+  return isUnderage() ? POOL_UNDER : POOL_ADULT;
+}
+
+// ============================ Progression / XP / unlocks ============================
+const PROGRESS_KEY = "lastcall_progress";
+const XP_PER_LEVEL = 120;
+const UNLOCKS = { endless: 2, advanced: 2, mixologist: 3 };
+
+function getProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "null") || { xp: 0, served: 0, perfects: 0 }; }
+  catch (e) { return { xp: 0, served: 0, perfects: 0 }; }
+}
+function setProgress(p) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (e) { /* ignore */ } }
+function levelForXp(xp) { return 1 + Math.floor((xp || 0) / XP_PER_LEVEL); }
+function isUnlocked(key) { return levelForXp(getProgress().xp) >= (UNLOCKS[key] || 1); }
+
+function recordResult(result) {
+  const p = getProgress();
+  p.xp = (p.xp || 0) + (result.stagePoints || 0) + (result.tip || 0);
+  p.served = (p.served || 0) + 1;
+  if (result.stars === 3) p.perfects = (p.perfects || 0) + 1;
+  setProgress(p);
+  checkBadges();
+}
+
+// ============================ Daily streak ============================
+const DAILY_KEY = "lastcall_daily";
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function ydayStr() { return new Date(Date.now() - 86400000).toISOString().slice(0, 10); }
+function getDaily() {
+  try { return JSON.parse(localStorage.getItem(DAILY_KEY) || "null") || { last: null, streak: 0, best: 0, days: 0 }; }
+  catch (e) { return { last: null, streak: 0, best: 0, days: 0 }; }
+}
+function setDaily(d) { try { localStorage.setItem(DAILY_KEY, JSON.stringify(d)); } catch (e) { /* ignore */ } }
+function recordPlayDay() {
+  const d = getDaily();
+  const t = todayStr();
+  if (d.last === t) return d;
+  d.streak = d.last === ydayStr() ? (d.streak || 0) + 1 : 1;
+  d.best = Math.max(d.best || 0, d.streak);
+  d.days = (d.days || 0) + 1;
+  d.last = t;
+  setDaily(d);
+  checkBadges();
+  return d;
+}
+
+// ============================ Cocktail of the Day ============================
+const COTD_KEY = "lastcall_cotd";
+function getCotd() {
+  try { return JSON.parse(localStorage.getItem(COTD_KEY) || "null") || { date: null, id: null, queue: [], doneDate: null, count: 0 }; }
+  catch (e) { return { date: null, id: null, queue: [], doneDate: null, count: 0 }; }
+}
+function setCotd(c) { try { localStorage.setItem(COTD_KEY, JSON.stringify(c)); } catch (e) { /* ignore */ } }
+function shuffle(a) { const x = [...a]; for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; }
+// Returns { recipe, done } for today. Picks from a no-repeat shuffled queue.
+function todaysCotd() {
+  const pool = drinkPool();
+  const c = getCotd();
+  const t = todayStr();
+  if (c.date === t && c.id) {
+    const r = pool.find((x) => x.id === c.id);
+    if (r) return { recipe: r, done: c.doneDate === t };
+  }
+  let queue = (c.queue || []).filter((id) => pool.some((r) => r.id === id));
+  if (!queue.length) queue = shuffle(pool.map((r) => r.id));
+  const id = queue.shift();
+  setCotd({ date: t, id, queue, doneDate: c.doneDate, count: c.count || 0 });
+  return { recipe: pool.find((r) => r.id === id), done: false };
+}
+function markCotdDone() {
+  const c = getCotd();
+  if (c.doneDate !== todayStr()) { c.count = (c.count || 0) + 1; }
+  c.doneDate = todayStr();
+  setCotd(c);
+  checkBadges();
+}
+
+// ============================ Badges ============================
+const BADGES = [
+  { id: "first_serve", emoji: "🍸", name: "First Pour", desc: "Serve your first drink", test: (s) => s.served >= 1 },
+  { id: "three_star", emoji: "⭐", name: "Three Stars", desc: "Earn a 3-star drink", test: (s) => s.perfects >= 1 },
+  { id: "served_25", emoji: "🍹", name: "Getting Busy", desc: "Serve 25 drinks", test: (s) => s.served >= 25 },
+  { id: "served_100", emoji: "🏆", name: "Centurion", desc: "Serve 100 drinks", test: (s) => s.served >= 100 },
+  { id: "level_3", emoji: "📈", name: "Rising Star", desc: "Reach level 3", test: (s) => levelForXp(s.xp) >= 3 },
+  { id: "level_5", emoji: "🌟", name: "Seasoned Pro", desc: "Reach level 5", test: (s) => levelForXp(s.xp) >= 5 },
+  { id: "streak_3", emoji: "🔥", name: "On a Roll", desc: "3-day streak", test: (s, d) => (d.best || 0) >= 3 },
+  { id: "streak_7", emoji: "🗓️", name: "Regular", desc: "7-day streak", test: (s, d) => (d.best || 0) >= 7 },
+  { id: "inventor", emoji: "🧪", name: "Inventor", desc: "Save an invention to My Bar", test: () => getMyBar().length > 0 },
+  { id: "cotd_5", emoji: "📅", name: "Daily Habit", desc: "Play 5 Cocktails of the Day", test: (s, d, c) => (c.count || 0) >= 5 },
+];
+const BADGE_KEY = "lastcall_badges";
+function getEarned() { try { return JSON.parse(localStorage.getItem(BADGE_KEY) || "[]"); } catch (e) { return []; } }
+function setEarned(a) { try { localStorage.setItem(BADGE_KEY, JSON.stringify(a)); } catch (e) { /* ignore */ } }
+function checkBadges() {
+  const s = getProgress(), d = getDaily(), c = getCotd();
+  const earned = new Set(getEarned());
+  const newly = [];
+  BADGES.forEach((b) => { if (!earned.has(b.id) && b.test(s, d, c)) { earned.add(b.id); newly.push(b); } });
+  if (newly.length) setEarned([...earned]);
+  return newly;
+}
+
+// ============================ Start-screen meta UI ============================
+function applyLock(sel, unlocked, lvl) {
+  const el = $(sel);
+  if (!el) return;
+  el.classList.toggle("is-locked", !unlocked);
+  let lock = el.querySelector(".diff-lock");
+  if (!unlocked) {
+    if (!lock) { lock = document.createElement("span"); lock.className = "diff-lock"; el.appendChild(lock); }
+    lock.textContent = `🔒 Lv ${lvl}`;
+  } else if (lock) {
+    lock.remove();
+  }
+}
+
+function renderStartMeta() {
+  const prog = getProgress();
+  const lvl = levelForXp(prog.xp);
+  const inLvl = (prog.xp || 0) % XP_PER_LEVEL;
+  const daily = getDaily();
+
+  const lvlEl = $("#meta-level");
+  if (lvlEl) lvlEl.textContent = `Lv ${lvl}`;
+  const xpFill = $("#meta-xp-fill");
+  if (xpFill) xpFill.style.width = Math.round((inLvl / XP_PER_LEVEL) * 100) + "%";
+  const xpText = $("#meta-xp-text");
+  if (xpText) xpText.textContent = `${inLvl} / ${XP_PER_LEVEL} XP`;
+  const streakEl = $("#meta-streak");
+  if (streakEl) streakEl.textContent = daily.streak > 0 ? `🔥 ${daily.streak}-day streak` : "Play daily for a streak";
+
+  // Cocktail of the Day
+  const { recipe, done } = todaysCotd();
+  const cotdName = $("#cotd-name");
+  if (cotdName && recipe) cotdName.textContent = recipe.name;
+  const cotdBtn = $("#btn-cotd");
+  if (cotdBtn) {
+    cotdBtn.textContent = done ? "Done today ✓" : "Make it →";
+    cotdBtn.classList.toggle("is-done", !!done);
+  }
+
+  // Unlock gating
+  applyLock(".diff-card[data-diff='advanced']", isUnlocked("advanced"), UNLOCKS.advanced);
+  applyLock(".diff-card[data-diff='mixologist']", isUnlocked("mixologist"), UNLOCKS.mixologist);
+  const endlessBtn = $("#btn-endless");
+  if (endlessBtn) {
+    const ok = isUnlocked("endless");
+    endlessBtn.disabled = !ok;
+    endlessBtn.classList.toggle("is-locked", !ok);
+    endlessBtn.textContent = ok ? "🔥 Endless Shift" : `🔒 Endless · Lv ${UNLOCKS.endless}`;
+  }
+  // If a locked difficulty was selected, fall back to Basic.
+  if ((state.difficulty === "advanced" && !isUnlocked("advanced")) ||
+      (state.difficulty === "mixologist" && !isUnlocked("mixologist"))) {
+    state.difficulty = "basic";
+    document.querySelectorAll(".diff-card").forEach((c) => c.classList.toggle("is-selected", c.dataset.diff === "basic"));
+  }
+  const badgeBtn = $("#btn-badges");
+  if (badgeBtn) badgeBtn.textContent = `🏅 Badges (${getEarned().length}/${BADGES.length})`;
+}
+
+// Combined refresh whenever we land on the start screen.
+function onShowStart() {
+  applyProfile();
+  renderStartBest();
+  renderStartMeta();
+}
+
+// ============================ Cocktail of the Day (play) ============================
+function loadCotd() {
+  const { recipe } = todaysCotd();
+  if (!recipe) return;
+  state.mode = "cotd";
+  state.cotdRecipe = recipe;
+  state.challenge = null;
+  state.build = emptyBuild();
+  state.mixed = false;
+  if (state.difficulty === "mixologist" || !isUnlocked("advanced")) state.difficulty = "basic";
+  if (state.difficulty === "basic") { state.build.glass = recipe.glass; state.build.method = recipe.method; }
+  state.steps = getSteps(state.difficulty);
+  state.stepIndex = 0;
+  $(".progress-wrap").style.display = "none";
+  $("#endless-hud").style.display = "none";
+  clearCustomer();
+  $("#ticket-label").textContent = "Cocktail of the Day";
+  $("#stage-pill").textContent = "🍹 Daily";
+  $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
+  $("#order-name").textContent = recipe.name;
+  $("#order-desc").textContent = recipe.order;
+  recordPlayDay();
+  renderStation();
+  enterStep();
+  showScreen("screen-game");
+}
+
+// ============================ Badges screen ============================
+function renderBadges() {
+  const earned = new Set(getEarned());
+  const el = $("#badges-list");
+  if (!el) return;
+  const sub = $("#badges-sub");
+  if (sub) sub.textContent = `${earned.size} of ${BADGES.length} earned`;
+  el.innerHTML = "";
+  BADGES.forEach((b) => {
+    const has = earned.has(b.id);
+    const card = document.createElement("div");
+    card.className = "badge-item" + (has ? " is-earned" : "");
+    card.innerHTML =
+      `<span class="badge-emoji">${has ? b.emoji : "🔒"}</span>` +
+      `<span class="badge-name">${b.name}</span>` +
+      `<span class="badge-desc">${b.desc}</span>`;
+    el.appendChild(card);
+  });
 }
 
 // ============================ High score (localStorage) ============================
@@ -81,6 +370,22 @@ function showScreen(id) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("is-active"));
   $("#" + id).classList.add("is-active");
   window.scrollTo({ top: 0, behavior: "smooth" });
+  if (id === "screen-start") onShowStart();
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  let t = $("#toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast";
+    t.className = "toast";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add("is-show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("is-show"), 2400);
 }
 
 function unitMeta(unit) {
@@ -401,13 +706,15 @@ function fillCatalog() {
   if (!el) return;
   el.innerHTML = "";
   const added = new Set(state.build.ingredients.map((i) => i.id));
-  const cats = [...new Set(INGREDIENTS.map((i) => i.cat))];
+  // Underage players never see anything alcoholic.
+  const pantry = isUnderage() ? INGREDIENTS.filter((i) => (i.mx?.abv || 0) === 0) : INGREDIENTS;
+  const cats = [...new Set(pantry.map((i) => i.cat))];
   cats.forEach((cat) => {
     const group = document.createElement("div");
     group.innerHTML = `<p class="cat-group-title">${cat}</p>`;
     const items = document.createElement("div");
     items.className = "cat-items";
-    INGREDIENTS.filter((i) => i.cat === cat).forEach((ing) => {
+    pantry.filter((i) => i.cat === cat).forEach((ing) => {
       const btn = document.createElement("button");
       btn.className = "cat-item" + (added.has(ing.id) ? " is-added" : "");
       btn.textContent = ing.name;
@@ -559,7 +866,8 @@ function loadStage(index) {
   $(".progress-wrap").style.display = "";
   $(".progress-track").style.display = "";
   $("#endless-hud").style.display = "none";
-  const recipe = RECIPES[index];
+  const pool = drinkPool();
+  const recipe = pool[index];
 
   // Basic mode: glass & method are chosen automatically.
   if (state.difficulty === "basic") {
@@ -570,7 +878,7 @@ function loadStage(index) {
   state.stepIndex = 0;
 
   $("#ticket-label").textContent = "Customer Order";
-  $("#stage-pill").textContent = `Stage ${index + 1} / ${RECIPES.length}`;
+  $("#stage-pill").textContent = `Stage ${index + 1} / ${pool.length}`;
   $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
   pickCustomer();
   renderCustomer(recipe.name);
@@ -600,12 +908,13 @@ function loadEndless(next = false) {
   state.mixed = false;
 
   // Pick a random recipe that isn't an immediate repeat.
-  let idx = Math.floor(Math.random() * RECIPES.length);
-  if (RECIPES.length > 1) {
-    while (idx === state.lastEndlessIdx) idx = Math.floor(Math.random() * RECIPES.length);
+  const pool = drinkPool();
+  let idx = Math.floor(Math.random() * pool.length);
+  if (pool.length > 1) {
+    while (idx === state.lastEndlessIdx) idx = Math.floor(Math.random() * pool.length);
   }
   state.lastEndlessIdx = idx;
-  const recipe = RECIPES[idx];
+  const recipe = pool[idx];
   state.endlessRecipe = recipe;
 
   if (state.difficulty === "basic") {
@@ -650,6 +959,7 @@ function serveEndless() {
   }
   lastResult.tip = tip;
   state.totalScore += lastResult.stagePoints + tip;
+  recordResult(lastResult);
   showResult(lastResult);
 }
 
@@ -692,9 +1002,10 @@ function tolerance(unit, target) {
 
 function currentRecipe() {
   if (state.mode === "training" && state.trainingRecipe) return state.trainingRecipe;
+  if (state.mode === "cotd" && state.cotdRecipe) return state.cotdRecipe;
   if (state.mode === "challenge" && state.challenge) return state.challenge;
   if (state.mode === "endless" && state.endlessRecipe) return state.endlessRecipe;
-  return RECIPES[state.stage];
+  return drinkPool()[state.stage];
 }
 
 // ============================ Customers ============================
@@ -724,7 +1035,9 @@ function loadTraining() {
   state.mode = "training";
   state.difficulty = "advanced"; // full flow, so they learn every step
   state.challenge = null;
-  state.trainingRecipe = RECIPES.find((r) => r.id === "daiquiri") || RECIPES[0];
+  state.trainingRecipe = isUnderage()
+    ? (MOCKTAILS.find((r) => r.id === "virgin_mojito") || MOCKTAILS[0])
+    : (RECIPES.find((r) => r.id === "daiquiri") || RECIPES[0]);
   state.build = emptyBuild();
   state.mixed = false;
   state.steps = getSteps("advanced");
@@ -911,9 +1224,20 @@ function serve() {
     showResult(lastResult);
     return;
   }
+  if (state.mode === "cotd") {
+    lastResult = scoreBuild();
+    lastResult.tip = lastResult.stars > 0 ? 20 : 0; // daily bonus
+    recordResult(lastResult);
+    markCotdDone();
+    if (lastResult.stars === 0) Sound.fail();
+    else Sound.coin();
+    showResult(lastResult);
+    return;
+  }
   lastResult = scoreBuild();
   state.totalScore += lastResult.stagePoints;
   state.starsEarned += lastResult.stars;
+  recordResult(lastResult);
   if (lastResult.stars === 0) Sound.fail();
   showResult(lastResult);
 }
@@ -956,11 +1280,30 @@ function startMixologist() {
 let lastMix = null;
 function serveMix() {
   const result = evaluate(state.build, { strictness: STRICTNESS });
-  lastMix = { result, build: cloneBuild(state.build) };
-  if (result.score >= 70) Sound.coin();
-  else if (result.score >= 45) Sound.click();
+  const panel = scoreWithJudges(result, pickJudges(3));
+  result.judges = panel;
+  lastMix = { result, build: cloneBuild(state.build), panel };
+  if (panel.total >= 70) Sound.coin();
+  else if (panel.total >= 45) Sound.click();
   else Sound.fail();
   showMixResult(result);
+}
+
+function renderJudges(judges) {
+  const el = $("#judges-panel");
+  if (!el) return;
+  el.innerHTML = judges
+    .map((j) => `
+      <div class="judge-card">
+        <div class="judge-top">
+          <span class="judge-emoji">${j.emoji}</span>
+          <span class="judge-name">${j.name}</span>
+          <span class="judge-score">${j.score}<small>/10</small></span>
+        </div>
+        <div class="judge-blurb">${j.blurb}</div>
+        <div class="judge-comment">“${j.comment}”</div>
+      </div>`)
+    .join("");
 }
 
 function renderFlavorBars(p) {
@@ -981,10 +1324,12 @@ function renderFlavorBars(p) {
 }
 
 function showMixResult(result) {
+  const panel = result.judges || scoreWithJudges(result, pickJudges(3));
   $("#mix-name").textContent = "Your Creation";
-  $("#mix-score").textContent = result.score;
-  $("#mix-verdict").textContent = result.verdict;
-  $("#mix-stars").innerHTML = [0, 1, 2, 3, 4].map((i) => `<span class="${i < result.stars ? "on" : ""}">★</span>`).join("");
+  $("#mix-score").textContent = panel.total;
+  $("#mix-verdict").textContent = panel.verdict;
+  $("#mix-stars").innerHTML = [0, 1, 2, 3, 4].map((i) => `<span class="${i < panel.stars ? "on" : ""}">★</span>`).join("");
+  renderJudges(panel.judges);
 
   const cl = $("#mix-classic");
   if (result.classic) {
@@ -1023,15 +1368,18 @@ function setMyBar(list) {
 function saveInvention(name) {
   if (!lastMix) return;
   const list = getMyBar();
+  const score = lastMix.panel ? lastMix.panel.total : lastMix.result.score;
+  const verdict = lastMix.panel ? lastMix.panel.verdict : lastMix.result.verdict;
   list.unshift({
     name,
     build: lastMix.build,
-    score: lastMix.result.score,
-    verdict: lastMix.result.verdict,
+    score,
+    verdict,
     family: lastMix.result.family,
     ts: Date.now(),
   });
   setMyBar(list);
+  checkBadges();
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -1161,10 +1509,15 @@ function showResult(result) {
     retryBtn.style.display = "";
     retryBtn.textContent = "Retry stage";
     $("#btn-next-stage").textContent = "Back to My Bar";
+  } else if (state.mode === "cotd") {
+    retryBtn.style.display = "";
+    retryBtn.textContent = "Try again";
+    $("#result-eyebrow").textContent = result.stars >= 1 ? "🍹 Cocktail of the Day" : "Needs work";
+    $("#btn-next-stage").textContent = "Back to menu";
   } else {
     retryBtn.style.display = "";
     retryBtn.textContent = "Retry stage";
-    const isLast = state.stage === RECIPES.length - 1;
+    const isLast = state.stage === drinkPool().length - 1;
     $("#btn-next-stage").textContent = isLast ? "See results →" : "Next stage →";
   }
   showScreen("screen-result");
@@ -1185,7 +1538,7 @@ function showFinish() {
   }
   renderStartBest();
 
-  const maxStars = RECIPES.length * 3;
+  const maxStars = drinkPool().length * 3;
   const avg = state.starsEarned / maxStars;
   $("#finish-stars").innerHTML = [0, 1, 2].map((i) => `<span class="${i < Math.round(avg * 3) ? "on" : ""}">★</span>`).join("");
   let rank;
@@ -1202,11 +1555,18 @@ function showFinish() {
 // Difficulty selection
 document.querySelectorAll(".diff-card").forEach((card) => {
   card.addEventListener("click", () => {
+    const diff = card.dataset.diff;
+    if ((diff === "advanced" && !isUnlocked("advanced")) || (diff === "mixologist" && !isUnlocked("mixologist"))) {
+      Sound.init();
+      Sound.fail();
+      showToast(`🔒 Reach level ${UNLOCKS[diff]} to unlock ${diff === "advanced" ? "Advanced" : "Mixologist"}`);
+      return;
+    }
     Sound.init();
     Sound.click();
     document.querySelectorAll(".diff-card").forEach((c) => c.classList.remove("is-selected"));
     card.classList.add("is-selected");
-    state.difficulty = card.dataset.diff;
+    state.difficulty = diff;
   });
 });
 
@@ -1214,9 +1574,11 @@ $("#btn-start").addEventListener("click", () => {
   Sound.init();
   Sound.coin();
   if (state.difficulty === "mixologist") {
+    if (!isUnlocked("mixologist")) { Sound.fail(); showToast(`🔒 Reach level ${UNLOCKS.mixologist} to unlock Mixologist`); return; }
     startMixologist();
     return;
   }
+  recordPlayDay();
   state.totalScore = 0;
   state.starsEarned = 0;
   displayedScore = 0;
@@ -1225,7 +1587,9 @@ $("#btn-start").addEventListener("click", () => {
 
 $("#btn-endless").addEventListener("click", () => {
   Sound.init();
+  if (!isUnlocked("endless")) { Sound.fail(); showToast(`🔒 Reach level ${UNLOCKS.endless} to unlock Endless Shift`); return; }
   Sound.coin();
+  recordPlayDay();
   state.totalScore = 0;
   state.starsEarned = 0;
   state.lives = 3;
@@ -1260,6 +1624,11 @@ $("#btn-retry").addEventListener("click", () => {
     loadTraining();
     return;
   }
+  if (state.mode === "cotd") {
+    lastResult = null;
+    loadCotd();
+    return;
+  }
   if (lastResult) {
     state.totalScore -= lastResult.stagePoints;
     state.starsEarned -= lastResult.stars;
@@ -1284,6 +1653,10 @@ $("#btn-next-stage").addEventListener("click", () => {
     loadStage(0);
     return;
   }
+  if (state.mode === "cotd") {
+    showScreen("screen-start");
+    return;
+  }
   if (state.mode === "challenge") {
     renderMyBar();
     showScreen("screen-mybar");
@@ -1294,7 +1667,7 @@ $("#btn-next-stage").addEventListener("click", () => {
     else showEndlessFinish();
     return;
   }
-  if (state.stage < RECIPES.length - 1) loadStage(state.stage + 1);
+  if (state.stage < drinkPool().length - 1) loadStage(state.stage + 1);
   else showFinish();
 });
 
@@ -1325,6 +1698,22 @@ $("#btn-training").addEventListener("click", () => {
   Sound.click();
   loadTraining();
 });
+
+// Cocktail of the Day
+$("#btn-cotd").addEventListener("click", () => {
+  Sound.init();
+  Sound.coin();
+  loadCotd();
+});
+
+// Badges
+$("#btn-badges").addEventListener("click", () => {
+  Sound.init();
+  Sound.click();
+  renderBadges();
+  showScreen("screen-badges");
+});
+$("#btn-badges-back").addEventListener("click", () => showScreen("screen-start"));
 
 // My Bar
 $("#btn-mybar").addEventListener("click", () => {
@@ -1366,30 +1755,52 @@ $("#btn-quit").addEventListener("click", () => {
 });
 
 // ============================ Recipe Book ============================
+function diffPips(tier) {
+  return `<span class="rb-diff rb-diff-${tier}">${"●".repeat(tier)}${"○".repeat(5 - tier)} ${TIER_LABEL[tier]}</span>`;
+}
+function rbCard(r) {
+  const g = GLASS_BY_ID[r.glass];
+  const m = METHOD_BY_ID[r.method];
+  const garnish = GARNISH_BY_ID[r.garnish[0]];
+  const ings = r.ingredients
+    .map((i) => {
+      const ing = INGREDIENT_BY_ID[i.id];
+      return `<li><span class="rb-amt">${i.amount} ${ing.unit}</span> ${ing.name}</li>`;
+    })
+    .join("");
+  const card = document.createElement("div");
+  card.className = "rb-item";
+  card.innerHTML = `
+    <div class="rb-top">
+      <span class="rb-name">${r.name}</span>
+      <span class="rb-tags">${g.emoji} ${g.name} · ${m.emoji} ${m.name}</span>
+    </div>
+    ${diffPips(r.diff)}
+    <p class="rb-order">${r.order}</p>
+    <ul class="rb-ings">${ings}</ul>
+    <div class="rb-garnish">Garnish: ${garnish.emoji ? garnish.emoji + " " : ""}${garnish.name}</div>`;
+  return card;
+}
 function renderRecipeBook() {
   const el = $("#recipes-list");
   el.innerHTML = "";
-  RECIPES.forEach((r) => {
-    const g = GLASS_BY_ID[r.glass];
-    const m = METHOD_BY_ID[r.method];
-    const garnish = GARNISH_BY_ID[r.garnish[0]];
-    const ings = r.ingredients
-      .map((i) => {
-        const ing = INGREDIENT_BY_ID[i.id];
-        return `<li><span class="rb-amt">${i.amount} ${ing.unit}</span> ${ing.name}</li>`;
-      })
-      .join("");
-    const card = document.createElement("div");
-    card.className = "rb-item";
-    card.innerHTML = `
-      <div class="rb-top">
-        <span class="rb-name">${r.name}</span>
-        <span class="rb-tags">${g.emoji} ${g.name} · ${m.emoji} ${m.name}</span>
-      </div>
-      <p class="rb-order">${r.order}</p>
-      <ul class="rb-ings">${ings}</ul>
-      <div class="rb-garnish">Garnish: ${garnish.emoji ? garnish.emoji + " " : ""}${garnish.name}</div>`;
-    el.appendChild(card);
+  const sub = $("#recipes-sub");
+  const pool = drinkPool();
+  if (sub) sub.textContent = isUnderage()
+    ? `${pool.length} mocktails — easy to hard. Glass, method, build & garnish.`
+    : `${pool.length} drinks across cocktails & shots — easy to hard.`;
+
+  const sections = isUnderage()
+    ? [["Mocktails", pool]]
+    : [["Cocktails", pool.filter((r) => r.kind === "cocktail")], ["Shots", pool.filter((r) => r.kind === "shot")]];
+
+  sections.forEach(([title, list]) => {
+    if (!list.length) return;
+    const head = document.createElement("p");
+    head.className = "rb-section";
+    head.textContent = `${title} (${list.length})`;
+    el.appendChild(head);
+    list.forEach((r) => el.appendChild(rbCard(r)));
   });
 }
 
@@ -1419,14 +1830,54 @@ $("#btn-endless-menu").addEventListener("click", () => {
   showScreen("screen-start");
 });
 
-// Dynamic cocktail count in the footer.
-{
-  const footer = $("#start-footer");
-  if (footer) footer.innerHTML = `🍸 ${RECIPES.length} cocktails &nbsp;•&nbsp; precision pours &nbsp;•&nbsp; earn your stars`;
+// ============================ Profile / age gate ============================
+function openProfileForm() {
+  const p = getProfile();
+  $("#pf-name").value = p?.name || "";
+  $("#pf-age").value = p?.age || "";
+  $("#pf-location").value = p?.location || "";
+  $("#pf-email").value = p?.email || "";
+  $("#pf-error").textContent = "";
+  showScreen("screen-profile");
+  setTimeout(() => $("#pf-name").focus(), 50);
 }
 
-// Show the best score on first load.
-renderStartBest();
+$("#profile-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  Sound.init();
+  const name = ($("#pf-name").value || "").trim();
+  const age = parseInt($("#pf-age").value, 10);
+  const location = ($("#pf-location").value || "").trim();
+  const email = ($("#pf-email").value || "").trim();
+  const err = $("#pf-error");
+  if (!name) { err.textContent = "Please enter your name."; $("#pf-name").focus(); return; }
+  if (!Number.isFinite(age) || age < 1 || age > 120) { err.textContent = "Please enter a valid age (1–120)."; $("#pf-age").focus(); return; }
+  const existing = getProfile();
+  const profile = {
+    id: existing?.id || (email || genId()),
+    name, age, location, email,
+    createdAt: existing?.createdAt || Date.now(),
+    updatedAt: Date.now(),
+  };
+  setProfile(profile);
+  applyProfile();
+  renderStartBest();
+  Sound.coin();
+  showScreen("screen-start");
+});
+
+$("#btn-edit-profile").addEventListener("click", () => {
+  Sound.click();
+  openProfileForm();
+});
+
+// Boot: show the age gate on first visit, otherwise the start screen.
+checkBadges();
+if (!getProfile()) {
+  showScreen("screen-profile");
+} else {
+  onShowStart();
+}
 
 $("#btn-how").addEventListener("click", () => $("#modal-how").classList.add("is-open"));
 $("#btn-close-how").addEventListener("click", () => $("#modal-how").classList.remove("is-open"));

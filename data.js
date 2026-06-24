@@ -68,6 +68,7 @@ export const INGREDIENTS = [
   { id: "tonic_water", name: "Tonic Water", unit: "ml", cat: "Mixers", color: "#e6f1ec", mx: { fam: "soda", abv: 0, sw: 0.3, so: 0, bi: 0.35, pot: 1, fizz: 1 } },
   { id: "cola", name: "Cola", unit: "ml", cat: "Mixers", color: "#2f1b10", mx: { fam: "soda", abv: 0, sw: 0.6, so: 0.05, bi: 0.05, pot: 1, fizz: 1 } },
   { id: "ginger_beer", name: "Ginger Beer", unit: "ml", cat: "Mixers", color: "#dcae6a", mx: { fam: "soda", abv: 0, sw: 0.5, so: 0, bi: 0.1, pot: 1, fizz: 1 } },
+  { id: "ginger_ale", name: "Ginger Ale", unit: "ml", cat: "Mixers", color: "#e8cf95", mx: { fam: "soda", abv: 0, sw: 0.55, so: 0, bi: 0.05, pot: 1, fizz: 1 } },
   { id: "prosecco", name: "Prosecco", unit: "ml", cat: "Mixers", color: "#efe2a3", mx: { fam: "sparkling", abv: 11, sw: 0.2, so: 0.1, bi: 0, pot: 1, fizz: 1 } },
   { id: "espresso", name: "Espresso", unit: "ml", cat: "Mixers", color: "#241009", mx: { fam: "coffee", abv: 0, sw: 0, so: 0.05, bi: 0.6, pot: 1.1 } },
 
@@ -105,6 +106,7 @@ export const INGREDIENTS = [
   { id: "cherry_liqueur", name: "Cherry Liqueur", unit: "ml", cat: "Liqueurs", color: "#8e1f2a", mx: { fam: "liqueur", abv: 24, sw: 0.8, so: 0.05, bi: 0.05, pot: 1.2 } },
   { id: "raspberry_liqueur", name: "Raspberry Liqueur", unit: "ml", cat: "Liqueurs", color: "#6a0f33", mx: { fam: "liqueur", abv: 16, sw: 0.85, so: 0.1, bi: 0, pot: 1.3 } },
   { id: "drambuie", name: "Drambuie", unit: "ml", cat: "Liqueurs", color: "#b9742a", mx: { fam: "liqueur", abv: 40, sw: 0.7, so: 0, bi: 0.05, pot: 1.2 } },
+  { id: "irish_cream", name: "Irish Cream", unit: "ml", cat: "Liqueurs", color: "#c8a978", mx: { fam: "liqueur", abv: 17, sw: 0.7, so: 0, bi: 0.05, pot: 1.2 } },
 
   // More juices
   { id: "tomato_juice", name: "Tomato Juice", unit: "ml", cat: "Juices", color: "#c0392b", mx: { fam: "juice", abv: 0, sw: 0.1, so: 0.3, bi: 0.1, pot: 1 } },
@@ -818,6 +820,259 @@ export const RECIPES = [
     ],
     garnish: ["lemon_twist"],
   },
+];
+
+// ============================================================================
+// Mocktails — alcohol-free drinks. These are the ONLY drinks shown to underage
+// players, and are also available to everyone as a dedicated section.
+// Ordered easy -> hard (by ingredient count & preparation complexity).
+// ============================================================================
+export const MOCKTAILS = [
+  {
+    id: "virgin_sunrise",
+    name: "Virgin Sunrise",
+    order: "Orange juice with grenadine sinking to the bottom — a sunrise in a glass.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "orange_juice", amount: 150 },
+      { id: "grenadine", amount: 15 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "roy_rogers",
+    name: "Roy Rogers",
+    order: "Cola with a splash of grenadine and a cherry. A classic kids' favourite.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "cola", amount: 150 },
+      { id: "grenadine", amount: 15 },
+    ],
+    garnish: ["cherry"],
+  },
+  {
+    id: "shirley_temple",
+    name: "Shirley Temple",
+    order: "Fizzy ginger ale with grenadine and a cocktail cherry.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "ginger_ale", amount: 150 },
+      { id: "grenadine", amount: 15 },
+    ],
+    garnish: ["cherry"],
+  },
+  {
+    id: "virgin_pina_colada",
+    name: "Virgin Piña Colada",
+    order: "Pineapple and coconut cream blended frozen. A tropical treat, no rum.",
+    glass: "hurricane",
+    method: "blend",
+    ingredients: [
+      { id: "pineapple_juice", amount: 120 },
+      { id: "coconut_cream", amount: 40 },
+    ],
+    garnish: ["pineapple_wedge"],
+  },
+  {
+    id: "fresh_lemonade",
+    name: "Fresh Lemonade",
+    order: "Fresh lemon and sugar lengthened with soda over ice. Crisp and simple.",
+    glass: "collins",
+    method: "build",
+    ingredients: [
+      { id: "lemon_juice", amount: 30 },
+      { id: "sugar_syrup", amount: 20 },
+      { id: "soda_water", amount: 120 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "ginger_fizz",
+    name: "Ginger Fizz",
+    order: "Zingy ginger ale brightened with lime and a touch of sugar.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "ginger_ale", amount: 120 },
+      { id: "lime_juice", amount: 15 },
+      { id: "sugar_syrup", amount: 10 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "berry_fizz",
+    name: "Berry Fizz",
+    order: "Raspberry syrup with lemon and soda — a bright, berry sparkler.",
+    glass: "collins",
+    method: "build",
+    ingredients: [
+      { id: "raspberry_syrup", amount: 20 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "soda_water", amount: 120 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "virgin_mary",
+    name: "Virgin Mary",
+    order: "Savoury tomato juice with lemon and a few dashes of hot sauce. Bold and spicy.",
+    glass: "highball",
+    method: "build",
+    ingredients: [
+      { id: "tomato_juice", amount: 120 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "hot_sauce", amount: 2 },
+    ],
+    garnish: ["lime_wheel"],
+  },
+  {
+    id: "virgin_mojito",
+    name: "Virgin Mojito",
+    order: "Muddle mint with lime and sugar, top with soda. Refreshing, no rum.",
+    glass: "collins",
+    method: "muddle",
+    ingredients: [
+      { id: "lime_juice", amount: 25 },
+      { id: "sugar_syrup", amount: 20 },
+      { id: "soda_water", amount: 120 },
+      { id: "mint", amount: 8 },
+    ],
+    garnish: ["mint_sprig"],
+  },
+  {
+    id: "cinderella",
+    name: "Cinderella",
+    order: "Orange, pineapple and lemon shaken with a dash of grenadine. Fruity and fun.",
+    glass: "highball",
+    method: "shake",
+    ingredients: [
+      { id: "orange_juice", amount: 60 },
+      { id: "pineapple_juice", amount: 60 },
+      { id: "lemon_juice", amount: 15 },
+      { id: "grenadine", amount: 10 },
+    ],
+    garnish: ["orange_peel"],
+  },
+  {
+    id: "tropical_cooler",
+    name: "Tropical Cooler",
+    order: "Pineapple, orange and passion fruit shaken with lime. A holiday cooler.",
+    glass: "hurricane",
+    method: "shake",
+    ingredients: [
+      { id: "pineapple_juice", amount: 60 },
+      { id: "orange_juice", amount: 40 },
+      { id: "passion_fruit", amount: 20 },
+      { id: "lime_juice", amount: 15 },
+    ],
+    garnish: ["pineapple_wedge"],
+  },
+  {
+    id: "nojito_berry",
+    name: "Berry Nojito",
+    order: "Muddle mint with lime and raspberry syrup, top with soda. A berry twist.",
+    glass: "collins",
+    method: "muddle",
+    ingredients: [
+      { id: "raspberry_syrup", amount: 15 },
+      { id: "lime_juice", amount: 20 },
+      { id: "soda_water", amount: 120 },
+      { id: "mint", amount: 6 },
+    ],
+    garnish: ["mint_sprig"],
+  },
+];
+
+// ============================================================================
+// Shots — small, punchy drinks served in a shot glass. Adults only.
+// ============================================================================
+export const SHOTS = [
+  {
+    id: "kamikaze",
+    name: "Kamikaze",
+    order: "Vodka, triple sec and lime — shaken and served in one sharp hit.",
+    glass: "shot",
+    method: "shake",
+    ingredients: [
+      { id: "vodka", amount: 20 },
+      { id: "triple_sec", amount: 10 },
+      { id: "lime_juice", amount: 10 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "baby_guinness",
+    name: "Baby Guinness",
+    order: "Coffee liqueur topped with a float of Irish cream — looks like a tiny stout.",
+    glass: "shot",
+    method: "build",
+    ingredients: [
+      { id: "coffee_liqueur", amount: 30 },
+      { id: "irish_cream", amount: 10 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "lemon_drop_shot",
+    name: "Lemon Drop",
+    order: "Citron vodka with lemon and sugar — a zingy, sweet-tart shot.",
+    glass: "shot",
+    method: "shake",
+    ingredients: [
+      { id: "citron_vodka", amount: 20 },
+      { id: "lemon_juice", amount: 10 },
+      { id: "sugar_syrup", amount: 10 },
+    ],
+    garnish: ["lemon_twist"],
+  },
+  {
+    id: "b52",
+    name: "B-52",
+    order: "Layered coffee liqueur, Irish cream and triple sec — pour gently to keep the bands.",
+    glass: "shot",
+    method: "build",
+    ingredients: [
+      { id: "coffee_liqueur", amount: 15 },
+      { id: "irish_cream", amount: 15 },
+      { id: "triple_sec", amount: 15 },
+    ],
+    garnish: ["none"],
+  },
+  {
+    id: "green_tea_shot",
+    name: "Green Tea Shot",
+    order: "Whiskey, peach schnapps and lime topped with a splash of soda. Tastes like green tea.",
+    glass: "shot",
+    method: "shake",
+    ingredients: [
+      { id: "bourbon", amount: 20 },
+      { id: "peach_schnapps", amount: 15 },
+      { id: "lime_juice", amount: 10 },
+      { id: "ginger_ale", amount: 15 },
+    ],
+    garnish: ["none"],
+  },
+];
+
+// ============================================================================
+// Judges — a rotating panel for the "invent a new mix" mode. 10 judges, each
+// with their own palate (ideal levels 0..1 for strong/sweet/sour/bitter/fizz),
+// how picky they are (weight), and how generous (bias). 3 judge a mix at a time.
+// ============================================================================
+export const JUDGES = [
+  { id: "vera", name: "Vera", emoji: "🍸", blurb: "Classic martini purist", ideal: { strong: 0.85, sweet: 0.2, sour: 0.3, bitter: 0.4, fizz: 0.1 }, weight: 0.6, bias: -4 },
+  { id: "sweet_lou", name: "Lou", emoji: "🍬", blurb: "Sweet tooth", ideal: { strong: 0.4, sweet: 0.85, sour: 0.4, bitter: 0.1, fizz: 0.4 }, weight: 0.65, bias: 4 },
+  { id: "sour_sal", name: "Sal", emoji: "🍋", blurb: "Loves a sharp sour", ideal: { strong: 0.5, sweet: 0.4, sour: 0.85, bitter: 0.2, fizz: 0.2 }, weight: 0.6, bias: 0 },
+  { id: "bitter_bo", name: "Bo", emoji: "🌿", blurb: "Amaro & bitters fan", ideal: { strong: 0.7, sweet: 0.25, sour: 0.3, bitter: 0.85, fizz: 0.1 }, weight: 0.65, bias: -2 },
+  { id: "fizzy_fay", name: "Fay", emoji: "🥂", blurb: "Spritz & bubbles", ideal: { strong: 0.35, sweet: 0.55, sour: 0.45, bitter: 0.2, fizz: 0.9 }, weight: 0.6, bias: 3 },
+  { id: "tiki_tom", name: "Tom", emoji: "🍍", blurb: "Tropical & fruity", ideal: { strong: 0.55, sweet: 0.7, sour: 0.6, bitter: 0.1, fizz: 0.2 }, weight: 0.55, bias: 2 },
+  { id: "balanced_bea", name: "Bea", emoji: "⚖️", blurb: "Wants perfect balance", ideal: { strong: 0.55, sweet: 0.5, sour: 0.5, bitter: 0.35, fizz: 0.3 }, weight: 0.75, bias: 0 },
+  { id: "boozy_bru", name: "Bruno", emoji: "🥃", blurb: "Spirit-forward & strong", ideal: { strong: 0.95, sweet: 0.15, sour: 0.2, bitter: 0.45, fizz: 0.05 }, weight: 0.7, bias: -3 },
+  { id: "easy_emma", name: "Emma", emoji: "😊", blurb: "Easy-going crowd-pleaser", ideal: { strong: 0.45, sweet: 0.55, sour: 0.45, bitter: 0.25, fizz: 0.4 }, weight: 0.4, bias: 6 },
+  { id: "critic_cyrus", name: "Cyrus", emoji: "🧐", blurb: "Hard-to-impress critic", ideal: { strong: 0.6, sweet: 0.45, sour: 0.5, bitter: 0.5, fizz: 0.25 }, weight: 0.7, bias: -7 },
 ];
 
 // ============================================================================

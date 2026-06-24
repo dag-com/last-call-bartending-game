@@ -14,15 +14,68 @@
   </head>
   <body>
     <div class="app">
+      <!-- ============================== PROFILE / AGE GATE ============================== -->
+      <section id="screen-profile" class="screen">
+        <div class="start-card profile-card">
+          <p class="eyebrow">Welcome to the bar</p>
+          <h1 class="title title-sm">LAST&nbsp;CALL</h1>
+          <p class="subtitle">Set up your bartender profile to begin. We use your age to decide whether you get the full cocktail bar or the alcohol-free mocktail menu.</p>
+
+          <form id="profile-form" class="profile-form" novalidate>
+            <label class="pf-field">
+              <span class="pf-label">Name <span class="pf-req">*</span></span>
+              <input id="pf-name" class="name-input" type="text" maxlength="32" placeholder="e.g. Alex" autocomplete="name" />
+            </label>
+            <label class="pf-field">
+              <span class="pf-label">Age <span class="pf-req">*</span></span>
+              <input id="pf-age" class="name-input" type="number" min="1" max="120" placeholder="e.g. 27" inputmode="numeric" />
+            </label>
+            <label class="pf-field">
+              <span class="pf-label">Location</span>
+              <input id="pf-location" class="name-input" type="text" maxlength="48" placeholder="e.g. London, UK" autocomplete="address-level2" />
+            </label>
+            <label class="pf-field">
+              <span class="pf-label">Email or unique ID</span>
+              <input id="pf-email" class="name-input" type="text" maxlength="64" placeholder="e.g. alex@email.com (optional)" autocomplete="email" />
+            </label>
+            <p class="pf-error" id="pf-error"></p>
+            <p class="name-hint">Stored only on this device for now. Under 18 means a mocktail-only (no alcohol) experience.</p>
+            <button type="submit" id="btn-profile-save" class="btn btn-primary btn-lg">Enter the bar →</button>
+          </form>
+        </div>
+      </section>
+
       <!-- ============================== START SCREEN ============================== -->
       <section id="screen-start" class="screen is-active">
         <div class="start-card">
+          <div class="profile-bar" id="profile-bar" style="display:none">
+            <span class="profile-chip" id="profile-chip"></span>
+            <button id="btn-edit-profile" class="btn btn-ghost btn-sm">Edit</button>
+          </div>
+          <p class="mocktail-banner" id="mocktail-banner" style="display:none">🧃 Mocktail mode — alcohol-free menu</p>
           <p class="eyebrow">Mix • Serve • Survive the rush</p>
           <h1 class="title">LAST&nbsp;CALL</h1>
           <p class="subtitle">
             A bartending game. Read the order, then prep the drink step by step
             like a real bartender. Measurements are metric (ml).
           </p>
+
+          <div class="player-meta" id="player-meta">
+            <div class="pm-row">
+              <span class="pm-level" id="meta-level">Lv 1</span>
+              <div class="pm-xp"><div class="pm-xp-fill" id="meta-xp-fill"></div></div>
+              <span class="pm-xp-text" id="meta-xp-text">0 / 120 XP</span>
+            </div>
+            <span class="pm-streak" id="meta-streak">Play daily for a streak</span>
+          </div>
+
+          <div class="cotd-card" id="cotd-card">
+            <div class="cotd-info">
+              <span class="cotd-eyebrow">🍹 Cocktail of the Day</span>
+              <span class="cotd-name" id="cotd-name">—</span>
+            </div>
+            <button id="btn-cotd" class="btn btn-cotd">Make it →</button>
+          </div>
 
           <div class="difficulty">
             <p class="difficulty-label">Choose difficulty</p>
@@ -48,6 +101,7 @@
           </div>
           <div class="start-links">
             <button id="btn-training" class="btn btn-ghost">📚 Training</button>
+            <button id="btn-badges" class="btn btn-ghost">🏅 Badges</button>
             <button id="btn-how" class="btn btn-ghost">How to play</button>
             <button id="btn-recipes" class="btn btn-ghost">Recipe Book</button>
             <button id="btn-mybar" class="btn btn-ghost">My Bar</button>
@@ -143,7 +197,7 @@
       <!-- ============================== MIXOLOGIST RESULT ============================== -->
       <section id="screen-mix-result" class="screen">
         <div class="result-card mix-card">
-          <p class="eyebrow" id="mix-eyebrow">Tasting verdict</p>
+          <p class="eyebrow" id="mix-eyebrow">The judges' verdict</p>
           <h2 class="result-name" id="mix-name">Your Creation</h2>
           <div class="mix-score-row">
             <div class="mix-bigscore"><span id="mix-score">0</span><span class="mix-score-max">/100</span></div>
@@ -152,6 +206,8 @@
               <div class="mix-verdict" id="mix-verdict">—</div>
             </div>
           </div>
+          <p class="judges-title">⚖️ Tonight's panel</p>
+          <div class="judges-panel" id="judges-panel"></div>
           <p class="mix-classic" id="mix-classic"></p>
           <p class="mix-note" id="mix-note"></p>
           <div class="mix-meta" id="mix-meta"></div>
@@ -181,6 +237,18 @@
         </div>
       </section>
 
+      <!-- ============================== BADGES ============================== -->
+      <section id="screen-badges" class="screen">
+        <div class="badges-card">
+          <div class="badges-head">
+            <h2 class="result-name">Badges</h2>
+            <button id="btn-badges-back" class="btn btn-ghost btn-sm">← Back</button>
+          </div>
+          <p class="badges-sub" id="badges-sub">0 of 0 earned</p>
+          <div class="badges-list" id="badges-list"></div>
+        </div>
+      </section>
+
       <!-- ============================== RECIPE BOOK ============================== -->
       <section id="screen-recipes" class="screen">
         <div class="recipes-card">
@@ -188,7 +256,7 @@
             <h2 class="result-name">Recipe Book</h2>
             <button id="btn-recipes-back" class="btn btn-ghost btn-sm">← Back</button>
           </div>
-          <p class="recipes-sub">Every cocktail in the bar — glass, method, build and garnish.</p>
+          <p class="recipes-sub" id="recipes-sub">Every cocktail in the bar — glass, method, build and garnish.</p>
           <div class="recipes-list" id="recipes-list"></div>
         </div>
       </section>

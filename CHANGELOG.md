@@ -12,6 +12,44 @@ any past version, go to the repository's **Releases** page and pick that version
 
 ---
 
+## v1.1.0 — Profiles, mocktails, progression & judges (2026-06-24)
+
+A big content and progression update. Everything still runs as a static site
+(no servers or accounts yet — that's planned for a later release).
+
+### Players & access
+- **Profile / age gate** — first-time players set up a profile (name, age,
+  location, email or unique ID). Saved on the device for now.
+- **Age filtering** — under-18 players get a **mocktail-only** experience with
+  all alcohol hidden across every mode; adults get the full bar.
+
+### New content
+- **12 mocktails** (Virgin Sunrise, Shirley Temple, Virgin Piña Colada, Virgin
+  Mojito, Virgin Mary, and more).
+- **Shots section** — B-52, Baby Guinness, Kamikaze, Lemon Drop, Green Tea Shot.
+- Every drink now has a **difficulty rating** (easy → expert) based on its number
+  of ingredients and preparation method; the **Recipe Book** is grouped into
+  sections (Cocktails / Shots / Mocktails) and ordered easy-first.
+
+### Progression & the core loop
+- **Levels & XP** — earn XP for every drink you serve; a level bar shows progress.
+- **Unlocks** — Advanced & Endless unlock at level 2, Mixologist at level 3.
+- **Cocktail of the Day** — a fresh daily drink with no repeats, plus a bonus.
+- **Daily streak** — keep your streak alive by playing each day.
+- **Badges** — 10 achievements (first pour, three stars, streaks, level
+  milestones, inventor, daily habit, and more) on a dedicated Badges screen.
+
+### Invent-a-mix judging
+- **Judges panel** — the Mixologist mode is now scored by a rotating panel of
+  judges (3 of 10, each with their own palate and comments) instead of a single
+  evaluator score.
+
+### Still to come (needs a backend)
+- Community sharing of your inventions, likes/feedback, and global leaderboards
+  (most-likes and daily-streak tabs), plus real accounts that sync across devices.
+
+---
+
 ## v1.0.0 — First release (2026-06-20)
 
 The first official, versioned release of the game.

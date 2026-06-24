@@ -1147,6 +1147,7 @@ body {
 
 /* Menu-like screens: centred, scroll internally only if they overflow */
 #screen-start.is-active,
+#screen-profile.is-active,
 #screen-result.is-active,
 #screen-finish.is-active {
   align-items: center;
@@ -1155,6 +1156,7 @@ body {
   min-height: 0;
 }
 #screen-start,
+#screen-profile,
 #screen-result,
 #screen-finish {
   min-height: 0;
@@ -1269,7 +1271,8 @@ body {
 }
 
 #screen-mix-result.is-active,
-#screen-mybar.is-active {
+#screen-mybar.is-active,
+#screen-badges.is-active {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1858,3 +1861,346 @@ body {
     font-size: 12px;
   }
 }
+
+/* ============================ Profile / age gate ============================ */
+.profile-card {
+  max-width: 460px;
+}
+.title-sm {
+  font-size: clamp(48px, 11vw, 90px);
+}
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  margin-top: 8px;
+}
+.pf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pf-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.pf-req {
+  color: var(--rose);
+}
+.pf-error {
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 16px;
+  margin: 0;
+}
+.profile-form .btn-primary {
+  margin-top: 4px;
+}
+
+/* Start-screen profile bar */
+.profile-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.profile-chip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.mocktail-banner {
+  background: linear-gradient(180deg, rgba(79, 209, 139, 0.18), rgba(79, 209, 139, 0.06));
+  border: 1px solid rgba(79, 209, 139, 0.5);
+  color: #9be9bf;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 auto 10px;
+  display: inline-block;
+}
+
+/* ============================ Player meta (level / XP / streak) ============================ */
+.player-meta {
+  margin: 12px 0;
+}
+.pm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pm-level {
+  background: linear-gradient(180deg, var(--gold), #b8862f);
+  color: #1a130a;
+  font-weight: 800;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+.pm-xp {
+  flex: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 0;
+}
+.pm-xp-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gold-soft), var(--gold));
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+.pm-xp-text {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pm-streak {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--gold-soft);
+  font-weight: 600;
+}
+
+/* ============================ Cocktail of the Day ============================ */
+.cotd-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(233, 185, 73, 0.16), rgba(255, 122, 24, 0.1));
+  border: 1px solid rgba(233, 185, 73, 0.45);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.cotd-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  min-width: 0;
+}
+.cotd-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--gold-soft);
+  font-weight: 700;
+}
+.cotd-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.btn-cotd {
+  background: linear-gradient(180deg, var(--gold), #b8862f);
+  color: #1a130a;
+  font-weight: 800;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-cotd.is-done {
+  background: rgba(79, 209, 139, 0.25);
+  color: #9be9bf;
+  border: 1px solid rgba(79, 209, 139, 0.5);
+}
+
+/* ============================ Locks ============================ */
+.diff-card.is-locked {
+  opacity: 0.55;
+  position: relative;
+}
+.diff-lock {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold-soft);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.btn-endless.is-locked {
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+
+/* ============================ Toast ============================ */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(20, 14, 28, 0.96);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 1000;
+  max-width: 90vw;
+  text-align: center;
+}
+.toast.is-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================ Judges panel ============================ */
+.judges-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--gold-soft);
+  font-weight: 700;
+  margin: 14px 0 8px;
+}
+.judges-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.judge-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: left;
+}
+.judge-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.judge-emoji {
+  font-size: 18px;
+}
+.judge-name {
+  font-weight: 700;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+.judge-score {
+  font-weight: 800;
+  color: var(--gold);
+  font-size: 15px;
+}
+.judge-score small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.judge-blurb {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.judge-comment {
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+/* ============================ Badges ============================ */
+.badges-card {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 24px;
+}
+.badges-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.badges-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+.badges-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.badge-item {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0.6;
+}
+.badge-item.is-earned {
+  opacity: 1;
+  border-color: rgba(233, 185, 73, 0.5);
+  background: linear-gradient(180deg, rgba(233, 185, 73, 0.12), transparent);
+}
+.badge-emoji {
+  font-size: 30px;
+}
+.badge-name {
+  font-weight: 700;
+  font-size: 13px;
+}
+.badge-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ============================ Recipe Book extras ============================ */
+.rb-section {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  margin: 18px 0 8px;
+}
+.rb-section:first-child {
+  margin-top: 0;
+}
+.rb-diff {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin: 2px 0 6px;
+}
+.rb-diff-1, .rb-diff-2 { color: #6fcf97; }
+.rb-diff-3 { color: var(--gold-soft); }
+.rb-diff-4 { color: #f2994a; }
+.rb-diff-5 { color: var(--rose); }
