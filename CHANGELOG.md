@@ -12,6 +12,31 @@ any past version, go to the repository's **Releases** page and pick that version
 
 ---
 
+## v1.2.0 — Online backend: Community & Leaderboards (2026-06-24)
+
+Adds the foundation for the game's online features. This ships the code and the
+in-game screens; the online features switch on once a (free) Supabase backend is
+connected — see **SETUP-BACKEND.md** for the one-time setup.
+
+### New
+- **Community** — share your invented cocktails and browse, like (♥) and discover
+  drinks made by other players. Sort by **Top** (most liked) or **Newest**.
+- **Leaderboards** — two tabs: **Most Liked** creations and **Daily Streak**.
+- **Online accounts** — anonymous, frictionless sign-in (each device gets its own
+  secure account); player name, location, level and best streak sync to the
+  leaderboard.
+- **Share** buttons on the Mixologist result and on each saved drink in **My Bar**.
+
+### Notes
+- Until a backend is connected, the game runs exactly as before and the Community
+  / Leaderboard screens show a friendly "not connected yet" message.
+- The Community button is hidden for under-18 players; the Leaderboard stays
+  available to everyone.
+- Built with Supabase (hosted Postgres + auth), loaded from a CDN so the project
+  stays zero-build.
+
+---
+
 ## v1.1.0 — Profiles, mocktails, progression & judges (2026-06-24)
 
 A big content and progression update. Everything still runs as a static site

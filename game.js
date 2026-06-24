@@ -16,6 +16,7 @@ import { Sound } from "./sound.js";
 import * as Glass from "./glass.js";
 import { evaluate } from "./mixology.js";
 import { scoreWithJudges, pickJudges } from "./judges.js";
+import * as Backend from "./backend.js";
 
 // ============================ Game state ============================
 const state = {
@@ -276,6 +277,9 @@ function renderStartMeta() {
   }
   const badgeBtn = $("#btn-badges");
   if (badgeBtn) badgeBtn.textContent = `🏅 Badges (${getEarned().length}/${BADGES.length})`;
+  // Community surfaces user-shared cocktails, so hide it for underage players.
+  const commBtn = $("#btn-community");
+  if (commBtn) commBtn.style.display = isUnderage() ? "none" : "";
 }
 
 // Combined refresh whenever we land on the start screen.
@@ -283,6 +287,136 @@ function onShowStart() {
   applyProfile();
   renderStartBest();
   renderStartMeta();
+  syncBackendStats();
+}
+
+// ============================ Backend (Community + Leaderboards) ============================
+function syncBackendStats() {
+  if (!Backend.isReady()) return;
+  const p = getProfile();
+  const prog = getProgress();
+  const d = getDaily();
+  Backend.syncStats({
+    bestStreak: d.best || 0,
+    level: levelForXp(prog.xp),
+    xp: prog.xp || 0,
+    name: p && p.name,
+    location: p && p.location,
+  });
+}
+
+const NOT_CONNECTED = "🌐 Online features aren't connected yet — a backend still needs to be set up.";
+let communitySort = "top";
+let communityLikes = new Set();
+
+async function renderCommunity() {
+  const notice = $("#community-notice");
+  const list = $("#community-list");
+  list.innerHTML = "";
+  if (!Backend.isConfigured()) { notice.style.display = ""; notice.textContent = NOT_CONNECTED; return; }
+  notice.style.display = "none";
+  list.innerHTML = `<p class="backend-notice">Loading…</p>`;
+  if (!Backend.isReady()) await Backend.initBackend(getProfile());
+  if (!Backend.isReady()) { list.innerHTML = `<p class="backend-notice">Couldn't connect right now.</p>`; return; }
+  try {
+    const [items, liked] = await Promise.all([Backend.listCommunity(communitySort), Backend.myLikedIds()]);
+    communityLikes = liked;
+    if (!items.length) { list.innerHTML = `<p class="backend-notice">No creations yet — be the first to share one from Mixologist mode!</p>`; return; }
+    list.innerHTML = "";
+    items.forEach((it) => list.appendChild(communityCard(it)));
+  } catch (e) {
+    list.innerHTML = `<p class="backend-notice">Couldn't load the community right now.</p>`;
+  }
+}
+
+function communityCard(it) {
+  const liked = communityLikes.has(it.id);
+  const ings = (it.recipe && it.recipe.ingredients ? it.recipe.ingredients : [])
+    .map((i) => { const ing = INGREDIENT_BY_ID[i.id]; return ing ? ing.name : i.id; })
+    .slice(0, 6).join(", ");
+  const who = (it.players && it.players.name) || "Anonymous";
+  const card = document.createElement("div");
+  card.className = "comm-item";
+  card.innerHTML = `
+    <div class="comm-top">
+      <span class="comm-name">${escapeHtml(it.name)}</span>
+      <button class="like-btn ${liked ? "is-liked" : ""}" data-id="${it.id}">${liked ? "♥" : "♡"} <span>${it.like_count}</span></button>
+    </div>
+    <div class="comm-meta">by ${escapeHtml(who)} · ${it.score}/100${it.family ? " · " + escapeHtml(it.family) : ""}</div>
+    <div class="comm-ings">${escapeHtml(ings)}</div>`;
+  card.querySelector(".like-btn").addEventListener("click", onLikeClick);
+  return card;
+}
+
+async function onLikeClick(e) {
+  const btn = e.currentTarget;
+  const id = btn.dataset.id;
+  const wasLiked = btn.classList.contains("is-liked");
+  btn.disabled = true;
+  try {
+    const now = await Backend.toggleLike(id, wasLiked);
+    const span = btn.querySelector("span");
+    const count = Math.max(0, parseInt(span.textContent, 10) + (now ? 1 : -1));
+    btn.classList.toggle("is-liked", now);
+    btn.innerHTML = `${now ? "♥" : "♡"} <span>${count}</span>`;
+    if (now) communityLikes.add(id); else communityLikes.delete(id);
+    Sound.click();
+  } catch (err) {
+    showToast("Couldn't register your vote.");
+  }
+  btn.disabled = false;
+}
+
+let lbBoard = "likes";
+async function renderLeaderboard() {
+  const notice = $("#leaderboard-notice");
+  const list = $("#leaderboard-list");
+  list.innerHTML = "";
+  if (!Backend.isConfigured()) { notice.style.display = ""; notice.textContent = NOT_CONNECTED; return; }
+  notice.style.display = "none";
+  list.innerHTML = `<p class="backend-notice">Loading…</p>`;
+  if (!Backend.isReady()) await Backend.initBackend(getProfile());
+  if (!Backend.isReady()) { list.innerHTML = `<p class="backend-notice">Couldn't connect right now.</p>`; return; }
+  try {
+    if (lbBoard === "likes") {
+      const rows = await Backend.leaderboardLikes();
+      if (!rows.length) { list.innerHTML = `<p class="backend-notice">No shared creations yet.</p>`; return; }
+      list.innerHTML = rows.map((r, i) => `
+        <div class="lb-row">
+          <span class="lb-rank">${rankMedal(i)}</span>
+          <span class="lb-main"><strong>${escapeHtml(r.name)}</strong><small>by ${escapeHtml(r.player_name || "Anonymous")}</small></span>
+          <span class="lb-val">❤ ${r.like_count}</span>
+        </div>`).join("");
+    } else {
+      const rows = await Backend.leaderboardStreak();
+      if (!rows.length) { list.innerHTML = `<p class="backend-notice">No streaks yet — play daily to climb!</p>`; return; }
+      list.innerHTML = rows.map((r, i) => `
+        <div class="lb-row">
+          <span class="lb-rank">${rankMedal(i)}</span>
+          <span class="lb-main"><strong>${escapeHtml(r.player_name || "Anonymous")}</strong><small>Lv ${r.level}${r.location ? " · " + escapeHtml(r.location) : ""}</small></span>
+          <span class="lb-val">🔥 ${r.best_streak}</span>
+        </div>`).join("");
+    }
+  } catch (e) {
+    list.innerHTML = `<p class="backend-notice">Couldn't load the leaderboard right now.</p>`;
+  }
+}
+function rankMedal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1); }
+
+async function shareCreationToCommunity(payload, btn) {
+  if (!Backend.isConfigured()) { showToast("Online sharing isn't connected yet."); return; }
+  const original = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "Sharing…"; }
+  try {
+    if (!Backend.isReady()) await Backend.initBackend(getProfile());
+    await Backend.shareCreation(payload);
+    if (btn) btn.textContent = "Shared ✓";
+    Sound.coin();
+    showToast("Shared to the community!");
+  } catch (e) {
+    if (btn) { btn.textContent = original; btn.disabled = false; }
+    showToast("Couldn't share right now.");
+  }
 }
 
 // ============================ Cocktail of the Day (play) ============================
@@ -1354,6 +1488,8 @@ function showMixResult(result) {
 
   $("#btn-mix-save").textContent = "Save to My Bar";
   $("#btn-mix-save").disabled = false;
+  const shareBtn = $("#btn-mix-share");
+  if (shareBtn) { shareBtn.textContent = "🌐 Share"; shareBtn.disabled = false; }
   showScreen("screen-mix-result");
 }
 
@@ -1407,9 +1543,20 @@ function renderMyBar() {
       </div>
       <div class="mybar-item-actions">
         <button class="btn btn-primary btn-sm" data-act="play">Recreate</button>
+        ${Backend.isConfigured() ? '<button class="btn btn-ghost btn-sm" data-act="share">🌐 Share</button>' : ""}
         <button class="btn btn-ghost btn-sm" data-act="del">Delete</button>
       </div>`;
     card.querySelector('[data-act="play"]').addEventListener("click", () => playInvention(inv));
+    const shareEl = card.querySelector('[data-act="share"]');
+    if (shareEl) shareEl.addEventListener("click", () => {
+      shareCreationToCommunity({
+        name: inv.name,
+        recipe: inv.build,
+        score: inv.score,
+        verdict: inv.verdict,
+        family: inv.family,
+      }, shareEl);
+    });
     card.querySelector('[data-act="del"]').addEventListener("click", () => {
       const l = getMyBar();
       l.splice(idx, 1);
@@ -1878,6 +2025,61 @@ if (!getProfile()) {
 } else {
   onShowStart();
 }
+
+// Connect to the backend in the background (no-op if not configured yet).
+if (getProfile()) {
+  Backend.initBackend(getProfile()).then((ok) => { if (ok) syncBackendStats(); });
+}
+
+// Community
+$("#btn-community").addEventListener("click", () => {
+  Sound.init();
+  Sound.click();
+  renderCommunity();
+  showScreen("screen-community");
+});
+$("#btn-community-back").addEventListener("click", () => showScreen("screen-start"));
+document.querySelectorAll("#community-tabs .seg-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll("#community-tabs .seg-tab").forEach((t) => t.classList.remove("is-active"));
+    tab.classList.add("is-active");
+    communitySort = tab.dataset.sort;
+    Sound.click();
+    renderCommunity();
+  });
+});
+
+// Leaderboard
+$("#btn-leaderboard").addEventListener("click", () => {
+  Sound.init();
+  Sound.click();
+  renderLeaderboard();
+  showScreen("screen-leaderboard");
+});
+$("#btn-leaderboard-back").addEventListener("click", () => showScreen("screen-start"));
+document.querySelectorAll("#leaderboard-tabs .seg-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll("#leaderboard-tabs .seg-tab").forEach((t) => t.classList.remove("is-active"));
+    tab.classList.add("is-active");
+    lbBoard = tab.dataset.board;
+    Sound.click();
+    renderLeaderboard();
+  });
+});
+
+// Share an invention from the Mixologist result screen.
+$("#btn-mix-share").addEventListener("click", () => {
+  if (!lastMix) return;
+  const nameEl = $("#mix-name");
+  const name = nameEl && nameEl.textContent && nameEl.textContent !== "Your Creation" ? nameEl.textContent : "Untitled Creation";
+  shareCreationToCommunity({
+    name,
+    recipe: lastMix.build,
+    score: lastMix.panel ? lastMix.panel.total : lastMix.result.score,
+    verdict: lastMix.panel ? lastMix.panel.verdict : lastMix.result.verdict,
+    family: lastMix.result.family,
+  }, $("#btn-mix-share"));
+});
 
 $("#btn-how").addEventListener("click", () => $("#modal-how").classList.add("is-open"));
 $("#btn-close-how").addEventListener("click", () => $("#modal-how").classList.remove("is-open"));

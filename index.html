@@ -102,6 +102,8 @@
           <div class="start-links">
             <button id="btn-training" class="btn btn-ghost">📚 Training</button>
             <button id="btn-badges" class="btn btn-ghost">🏅 Badges</button>
+            <button id="btn-community" class="btn btn-ghost">🌐 Community</button>
+            <button id="btn-leaderboard" class="btn btn-ghost">🏆 Leaderboard</button>
             <button id="btn-how" class="btn btn-ghost">How to play</button>
             <button id="btn-recipes" class="btn btn-ghost">Recipe Book</button>
             <button id="btn-mybar" class="btn btn-ghost">My Bar</button>
@@ -219,6 +221,7 @@
           <div class="result-actions mix-actions">
             <button id="btn-mix-tweak" class="btn btn-ghost">Tweak it</button>
             <button id="btn-mix-save" class="btn btn-ghost">Save to My Bar</button>
+            <button id="btn-mix-share" class="btn btn-ghost">🌐 Share</button>
             <button id="btn-mix-another" class="btn btn-primary">Make another →</button>
           </div>
           <button id="btn-mix-quit" class="btn btn-ghost btn-sm mix-quit">Quit to menu</button>
@@ -246,6 +249,39 @@
           </div>
           <p class="badges-sub" id="badges-sub">0 of 0 earned</p>
           <div class="badges-list" id="badges-list"></div>
+        </div>
+      </section>
+
+      <!-- ============================== COMMUNITY ============================== -->
+      <section id="screen-community" class="screen">
+        <div class="community-card">
+          <div class="community-head">
+            <h2 class="result-name">Community</h2>
+            <button id="btn-community-back" class="btn btn-ghost btn-sm">← Back</button>
+          </div>
+          <p class="community-sub">Cocktails invented and shared by other players. Tap ♥ to vote.</p>
+          <div class="seg-tabs" id="community-tabs">
+            <button class="seg-tab is-active" data-sort="top">Top</button>
+            <button class="seg-tab" data-sort="new">Newest</button>
+          </div>
+          <p class="backend-notice" id="community-notice" style="display:none"></p>
+          <div class="community-list" id="community-list"></div>
+        </div>
+      </section>
+
+      <!-- ============================== LEADERBOARD ============================== -->
+      <section id="screen-leaderboard" class="screen">
+        <div class="community-card">
+          <div class="community-head">
+            <h2 class="result-name">Leaderboard</h2>
+            <button id="btn-leaderboard-back" class="btn btn-ghost btn-sm">← Back</button>
+          </div>
+          <div class="seg-tabs" id="leaderboard-tabs">
+            <button class="seg-tab is-active" data-board="likes">❤️ Most Liked</button>
+            <button class="seg-tab" data-board="streak">🔥 Daily Streak</button>
+          </div>
+          <p class="backend-notice" id="leaderboard-notice" style="display:none"></p>
+          <div class="leaderboard-list" id="leaderboard-list"></div>
         </div>
       </section>
 
