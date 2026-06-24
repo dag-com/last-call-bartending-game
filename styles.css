@@ -2356,3 +2356,487 @@ body {
   font-size: 15px;
   flex-shrink: 0;
 }
+
+/* ============================ Start hero (DAG.com duck) ============================ */
+#screen-start.is-active {
+  position: relative;
+  min-height: 100dvh;
+  overflow-y: auto;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.hero-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(900px 620px at 82% 112%, rgba(233, 185, 73, 0.12), transparent 60%),
+    radial-gradient(1000px 720px at 50% -12%, #2a1c44 0%, transparent 60%),
+    radial-gradient(800px 700px at -10% 110%, #3a1430 0%, transparent 55%),
+    var(--bg);
+}
+/* The duck mascot — the brand centrepiece at the top of the menu. */
+.brand-duck {
+  width: min(62vw, 220px);
+  height: min(46vw, 168px);
+  margin: 2px auto -6px;
+  background: url("assets/duck.png") center bottom / contain no-repeat;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.6));
+}
+#screen-start .start-card {
+  position: relative;
+  z-index: 1;
+  margin: auto 0;
+  background: rgba(16, 11, 26, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(233, 185, 73, 0.32);
+  border-radius: 26px;
+  padding: 22px 24px 24px;
+  gap: 12px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.6);
+  width: 100%;
+}
+#screen-start .title {
+  font-size: clamp(60px, 13vw, 120px);
+}
+#screen-start .bar-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.guess-added {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.btn-mixologist {
+  background: linear-gradient(135deg, #9a63ff, #5a2cd6);
+  color: #fff;
+  border: none;
+}
+.btn-mixologist:hover {
+  filter: brightness(1.1);
+}
+.btn-mixologist.is-locked {
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+
+/* ============================ Stage map (journey) ============================ */
+#screen-map.is-active {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.map-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 2px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.map-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 700;
+}
+.map-rank-emoji {
+  font-size: 20px;
+}
+.map-rank-name {
+  font-size: 14px;
+  background: linear-gradient(180deg, #fff, var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.map-stars-total {
+  font-weight: 800;
+  color: var(--gold);
+  font-size: 15px;
+}
+.map-scroll {
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  align-items: center;
+}
+.map-path {
+  position: relative;
+  margin: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 34px;
+  /* top room for the duck avatar above the coins */
+  padding: 70px 40px 28px;
+  min-width: min-content;
+}
+/* dashed trail behind the nodes (runs through the coin row) */
+.map-path::before {
+  content: "";
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  /* aligns with coin centres: padding-top 70 + stars 14 + gap 6 + half coin 33 */
+  top: 123px;
+  height: 0;
+  border-top: 3px dashed rgba(233, 185, 73, 0.3);
+  z-index: 0;
+}
+.map-node {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  transition: transform 0.12s ease;
+  flex: 0 0 auto;
+}
+.map-node:active {
+  transform: scale(0.96);
+}
+/* Duck avatar that walks the map */
+.map-duck {
+  position: absolute;
+  z-index: 3;
+  width: 52px;
+  height: 52px;
+  transform: translate(-50%, -116%);
+  transition: left 0.85s cubic-bezier(0.45, 0.05, 0.3, 1), top 0.85s ease-in-out;
+  pointer-events: none;
+  will-change: left, top;
+}
+.map-duck img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.55));
+}
+.map-duck.is-walking {
+  animation: duckWaddle 0.32s ease-in-out infinite;
+}
+@keyframes duckWaddle {
+  0%,
+  100% {
+    transform: translate(-50%, -116%) rotate(-6deg);
+  }
+  50% {
+    transform: translate(-50%, -128%) rotate(6deg);
+  }
+}
+.map-coin {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 30px;
+  letter-spacing: 1px;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+}
+.map-node-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 120px;
+  text-align: center;
+  line-height: 1.25;
+}
+.map-stars {
+  font-size: 13px;
+  letter-spacing: 1px;
+  height: 14px;
+  color: #4a4060;
+}
+.map-stars .on {
+  color: var(--gold);
+}
+/* node states */
+.map-node.is-locked .map-coin {
+  background: linear-gradient(180deg, #2a2340, #1d1730);
+  color: #6b5e8a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.map-node.is-locked {
+  cursor: not-allowed;
+}
+.map-node.is-done .map-coin {
+  background: linear-gradient(180deg, #3aa76d, #1f8050);
+  color: #fff;
+}
+.map-node.is-current .map-coin {
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: #2a1d05;
+  border-color: #fff;
+  animation: nodePulse 1.6s ease-in-out infinite;
+}
+.map-node.is-current .map-node-label {
+  color: var(--text);
+}
+@keyframes nodePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(233, 185, 73, 0.5), 0 10px 22px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(233, 185, 73, 0), 0 10px 22px rgba(0, 0, 0, 0.45);
+  }
+}
+.map-rank-divider {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  align-self: center;
+  margin-top: 56px; /* sit near the coin row */
+  padding: 14px 12px;
+  width: 92px;
+  background: linear-gradient(180deg, rgba(233, 185, 73, 0.16), rgba(233, 185, 73, 0.02));
+  border: 1px solid rgba(233, 185, 73, 0.25);
+  border-radius: 14px;
+}
+.map-rank-divider .rd-emoji {
+  font-size: 26px;
+}
+.map-rank-divider .rd-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.map-rank-divider .rd-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.map-rank-divider.is-locked {
+  opacity: 0.55;
+}
+
+/* Rank-up celebration overlay */
+.rankup {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 4, 12, 0.7);
+  backdrop-filter: blur(4px);
+}
+.rankup.is-open {
+  display: flex;
+  animation: fade 0.3s ease;
+}
+.rankup-box {
+  text-align: center;
+  background: linear-gradient(180deg, #241836, #170f26);
+  border: 1px solid rgba(233, 185, 73, 0.4);
+  border-radius: 22px;
+  padding: 30px 36px;
+  box-shadow: var(--shadow);
+}
+.rankup-emoji {
+  font-size: 64px;
+  animation: emojiPulse 1.6s ease-in-out infinite;
+}
+@keyframes emojiPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+.rankup-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 12px;
+  color: var(--gold);
+  margin: 10px 0 2px;
+}
+.rankup-name {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 46px;
+  letter-spacing: 2px;
+  margin: 0 0 8px;
+}
+.rankup-body {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 340px;
+  margin: 0 auto 16px;
+}
+
+/* ============================== Settings screen ============================== */
+.settings-card {
+  text-align: left;
+}
+.pf-seg {
+  margin-bottom: 0;
+}
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.settings-title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 30px;
+  letter-spacing: 1px;
+  margin: 0;
+}
+.set-group {
+  margin-bottom: 18px;
+}
+.set-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.set-row .set-label {
+  margin-bottom: 0;
+}
+.set-toggle {
+  min-width: 64px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+.set-toggle[aria-pressed="true"] {
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  border-color: #fff;
+  color: #2a1d05;
+}
+.set-account {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.set-account-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+.set-danger {
+  color: #ff9b9b;
+  border: 1px solid rgba(255, 107, 107, 0.4);
+}
+
+/* ============================== Debug / testing toolbar ============================== */
+.debug-toolbar {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", system-ui, sans-serif;
+}
+.dbg-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 16, 30, 0.82);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  line-height: 1;
+}
+.dbg-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.dbg-tools {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(20, 16, 30, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+.debug-toolbar.is-open .dbg-tools {
+  display: flex;
+}
+.dbg-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.dbg-btn {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+.dbg-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.dbg-danger {
+  border-color: rgba(255, 107, 107, 0.5);
+  color: #ff9b9b;
+}
+.dbg-danger:hover {
+  background: rgba(255, 107, 107, 0.16);
+}

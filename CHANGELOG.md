@@ -12,6 +12,51 @@ any past version, go to the repository's **Releases** page and pick that version
 
 ---
 
+## v1.3.0 — Journey map, new look & a gentle on-ramp (2026-06-24)
+
+- **New start screen** featuring the DAG.com duck as a cut-out mascot above the
+  menu (isolated from the original artwork, transparent background), replacing
+  the old plain panel.
+- **Candy Crush–style journey map**: a **horizontal** path of numbered stages you
+  scroll through. Everyone starts at stage 1; clearing a stage (1★ or better)
+  unlocks the next. Cleared stages show the stars you earned, the current stage
+  pulses, and later stages stay locked.
+- **Walking duck avatar**: the DAG.com duck stands on your current stage and, every
+  time you clear one, **waddles along the map to the next stage** (with a little
+  step sound) before you tap in to play it.
+- **Metric or imperial measurements**: pick **ml** or **oz** when you register, and
+  the whole game (pour steppers, scoring feedback, drink volumes) shows your chosen
+  units. Drinks are stored in ml under the hood, so switching is lossless.
+- **New Settings screen** (⚙ from the menu): change measurement units, turn sound
+  effects and bar ambience on/off (your sound choice is remembered between visits),
+  edit your profile, switch user, or log out.
+- **Ranks**: the path is grouped into ranks of **8 stages** (Trainee → Barback →
+  Bartender → Mixologist → Head Bartender → Master → Legend), with a celebration
+  when you rank up.
+- **Start-simple ramp**: early stages are pure ingredient-guessing from a short
+  menu with **no measuring**. As you climb, mechanics unlock one at a time —
+  ml portions → prep method → **garnish** → glass selection — so complexity
+  scales naturally. In guess stages the drink still pours the **correct recipe
+  portions** so the glass looks realistic even though you aren't dialling amounts.
+- **Garnishing is automatic at first** and only becomes a manual step from the
+  Garnish tier (stage 20+); auto garnishes no longer float on an empty glass.
+- **Gentler measurement scoring**: being slightly off on a pour is forgiven more
+  the deeper you get into the journey, and a small miss is now flagged kindly
+  ("a bit much / a bit light") instead of a hard "off".
+- **Judges now taste every cocktail** (not just Mixologist inventions): each
+  result screen shows a 3-of-10 judges' reaction panel with their scores and
+  comments. From the moment you control the pour, their verdict **blends into
+  your stars** (75% recipe accuracy / 25% the panel's taste); in the early
+  guess-only stages they react for flavour and personality without affecting
+  your stars.
+- Manual Basic/Advanced selection is retired (difficulty now follows the map).
+  **Mixologist** and **Endless Shift** unlock after clearing 5 stages.
+- **Level-up & rules-change messages**: a full-screen card now announces rank-ups
+  and, the first time a new rule unlocks (measuring, choosing the method, the
+  garnish, then the glass), explains exactly what's new and what to do next.
+
+---
+
 ## v1.2.1 — Backend connected (2026-06-24)
 
 - Connected the live Supabase backend, so **Community** and **Leaderboards** are

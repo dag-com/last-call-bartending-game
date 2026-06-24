@@ -41,6 +41,8 @@ const state = {
   trainingRecipe: null,
   cotdRecipe: null, // Cocktail of the Day target
   mixJudges: null, // judging panel result for the current invention
+  complexity: null, // active complexity profile (portions/glass/method/menu)
+  menuIds: null, // curated ingredient menu (Set of ids) or null for full pantry
 };
 
 const STRICTNESS = "balanced";
@@ -66,6 +68,25 @@ function isUnderage() {
 function genId() {
   return "p_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
 }
+
+// ---- Measurement units (metric ml / imperial oz) ----
+// Liquids are always stored internally in ml; this layer converts for display.
+const ML_PER_OZ = 29.5735;
+function useImperial() { const p = getProfile(); return !!(p && p.units === "imperial"); }
+function dispAmount(unit, ml) {
+  if (unit === "ml" && useImperial()) return { val: Math.round((ml / ML_PER_OZ) * 4) / 4, label: "oz" };
+  return { val: ml, label: unit };
+}
+function dispStep(unit) { return unit === "ml" ? (useImperial() ? 0.25 : 5) : 1; }
+function toMl(unit, dispVal) { return (unit === "ml" && useImperial()) ? dispVal * ML_PER_OZ : dispVal; }
+
+// ---- App settings (sound preferences) ----
+const SETTINGS_KEY = "lastcall_settings";
+function getSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") || { sound: true }; }
+  catch (e) { return { sound: true }; }
+}
+function setSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ } }
 
 // Reflect the saved profile on the start screen (greeting + mocktail badge).
 function applyProfile() {
@@ -118,6 +139,86 @@ function buildPools() {
 buildPools();
 function drinkPool() {
   return isUnderage() ? POOL_UNDER : POOL_ADULT;
+}
+
+// ============================ Stage map / ranks / complexity ============================
+const MAP_KEY = "lastcall_map";
+const STAGES_PER_RANK = 8;
+const STAGES_TO_UNLOCK = 5; // clear this many to unlock Endless + Mixologist
+const RANKS = [
+  { emoji: "🧽", name: "Trainee" },
+  { emoji: "🍋", name: "Barback" },
+  { emoji: "🥃", name: "Bartender" },
+  { emoji: "🍸", name: "Mixologist" },
+  { emoji: "🎩", name: "Head Bartender" },
+  { emoji: "🏆", name: "Master Mixologist" },
+  { emoji: "👑", name: "Bar Legend" },
+];
+function rankInfo(idx) { return RANKS[Math.min(Math.max(0, idx), RANKS.length - 1)]; }
+function rankForCleared(count) { return Math.floor((count || 0) / STAGES_PER_RANK); }
+
+function getMap() {
+  try { return JSON.parse(localStorage.getItem(MAP_KEY) || "null") || { cleared: 0, stars: {} }; }
+  catch (e) { return { cleared: 0, stars: {} }; }
+}
+function setMap(m) { try { localStorage.setItem(MAP_KEY, JSON.stringify(m)); } catch (e) { /* ignore */ } }
+function totalStars() { return Object.values(getMap().stars || {}).reduce((a, b) => a + (b || 0), 0); }
+function mapUnlocked() { return getMap().cleared >= STAGES_TO_UNLOCK; }
+
+// What's new at each complexity tier — shown once when first reached.
+const TIER_INTRO = {
+  "Guess": { emoji: "🔎", eyebrow: "Your first stage", title: "Spot the ingredients", body: "Tap the ingredients you think belong in the drink — no measuring yet. Get the right ones in the glass, add a garnish, then serve.", button: "Let's pour →" },
+  "Pour": { emoji: "🥤", eyebrow: "Level up — new rule", title: "Now measure your pours", body: "From here on you set how much of each ingredient goes in. Tap to add, then use − / + to dial each amount. Get close to the recipe for more stars.", button: "Got it →" },
+  "Mix": { emoji: "🍸", eyebrow: "Level up — new rule", title: "Now choose the method", body: "A new step appears: pick how to combine the drink — shake, stir, build, muddle or blend. Choose the technique that suits the cocktail.", button: "Got it →" },
+  "Garnish": { emoji: "🍋", eyebrow: "Level up — new rule", title: "Now add the garnish", body: "Until now the garnish was added for you. From here you finish the drink yourself — pick the garnish that matches the cocktail for that last star.", button: "Got it →" },
+  "Full bar": { emoji: "🍷", eyebrow: "Level up — full bar", title: "Now pick the glass too", body: "You're running the full bar: choose the glassware, the pour, the method and the garnish yourself. Every choice counts toward your stars.", button: "Got it →" },
+};
+function tierSeen(label) { const m = getMap(); return !!(m.seenTiers && m.seenTiers[label]); }
+function markTierSeen(label) { const m = getMap(); m.seenTiers = m.seenTiers || {}; m.seenTiers[label] = 1; setMap(m); }
+
+// Complexity ramp — start simple, scale up. stageNo is 1-based.
+// New mechanics unlock one at a time: measure → method → garnish → glass.
+function complexityForStage(stageNo) {
+  if (stageNo <= 5)  return { portions: false, chooseGlass: false, chooseMethod: false, chooseGarnish: false, decoys: 3,  label: "Guess" };
+  if (stageNo <= 12) return { portions: true,  chooseGlass: false, chooseMethod: false, chooseGarnish: false, decoys: 6,  label: "Pour" };
+  if (stageNo <= 19) return { portions: true,  chooseGlass: false, chooseMethod: true,  chooseGarnish: false, decoys: 10, label: "Mix" };
+  if (stageNo <= 26) return { portions: true,  chooseGlass: false, chooseMethod: true,  chooseGarnish: true,  decoys: 12, label: "Garnish" };
+  return { portions: true, chooseGlass: true, chooseMethod: true, chooseGarnish: true, decoys: Infinity, label: "Full bar" };
+}
+
+function shuffleArr(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+// Curated short ingredient menu: the required ones + a few decoys, shuffled.
+function buildMenu(recipe, decoys) {
+  if (decoys === Infinity) return null; // null = show the full pantry
+  const pantry = isUnderage() ? INGREDIENTS.filter((i) => (i.mx?.abv || 0) === 0) : INGREDIENTS;
+  const required = recipe.ingredients.map((i) => i.id);
+  const reqSet = new Set(required);
+  const decoyPool = shuffleArr(pantry.filter((i) => !reqSet.has(i.id)).map((i) => i.id)).slice(0, decoys);
+  return new Set(shuffleArr([...required, ...decoyPool]));
+}
+
+function stepsFor(cx) {
+  const s = [];
+  if (cx.chooseGlass) s.push("glass");
+  s.push("ingredients");
+  if (cx.chooseMethod) s.push("method");
+  if (cx.chooseGarnish) s.push("garnish");
+  return s;
+}
+
+// Apply a complexity profile to the current build: auto-fill what isn't chosen.
+function applyComplexity(cx, recipe) {
+  state.complexity = cx;
+  if (!cx.chooseGlass) state.build.glass = recipe.glass;
+  if (!cx.chooseMethod) state.build.method = recipe.method;
+  if (!cx.chooseGarnish) state.build.garnish = recipe.garnish[0];
+  state.menuIds = buildMenu(recipe, cx.decoys);
+  state.steps = stepsFor(cx);
+  state.stepIndex = 0;
 }
 
 // ============================ Progression / XP / unlocks ============================
@@ -259,21 +360,18 @@ function renderStartMeta() {
     cotdBtn.classList.toggle("is-done", !!done);
   }
 
-  // Unlock gating
-  applyLock(".diff-card[data-diff='advanced']", isUnlocked("advanced"), UNLOCKS.advanced);
-  applyLock(".diff-card[data-diff='mixologist']", isUnlocked("mixologist"), UNLOCKS.mixologist);
+  // Unlock gating — Endless & Mixologist open after a few cleared stages.
+  const ok = mapUnlocked();
+  const left = Math.max(0, STAGES_TO_UNLOCK - getMap().cleared);
   const endlessBtn = $("#btn-endless");
   if (endlessBtn) {
-    const ok = isUnlocked("endless");
-    endlessBtn.disabled = !ok;
     endlessBtn.classList.toggle("is-locked", !ok);
-    endlessBtn.textContent = ok ? "🔥 Endless Shift" : `🔒 Endless · Lv ${UNLOCKS.endless}`;
+    endlessBtn.textContent = ok ? "🔥 Endless Shift" : `🔒 Endless · ${left} to go`;
   }
-  // If a locked difficulty was selected, fall back to Basic.
-  if ((state.difficulty === "advanced" && !isUnlocked("advanced")) ||
-      (state.difficulty === "mixologist" && !isUnlocked("mixologist"))) {
-    state.difficulty = "basic";
-    document.querySelectorAll(".diff-card").forEach((c) => c.classList.toggle("is-selected", c.dataset.diff === "basic"));
+  const mixBtn = $("#btn-mixologist");
+  if (mixBtn) {
+    mixBtn.classList.toggle("is-locked", !ok);
+    mixBtn.textContent = ok ? "🧪 Mixologist" : `🔒 Mixologist · ${left} to go`;
   }
   const badgeBtn = $("#btn-badges");
   if (badgeBtn) badgeBtn.textContent = `🏅 Badges (${getEarned().length}/${BADGES.length})`;
@@ -428,16 +526,14 @@ function loadCotd() {
   state.challenge = null;
   state.build = emptyBuild();
   state.mixed = false;
-  if (state.difficulty === "mixologist" || !isUnlocked("advanced")) state.difficulty = "basic";
-  if (state.difficulty === "basic") { state.build.glass = recipe.glass; state.build.method = recipe.method; }
-  state.steps = getSteps(state.difficulty);
-  state.stepIndex = 0;
+  // Daily uses the player's current ramp difficulty.
+  applyComplexity(complexityForStage(getMap().cleared + 1), recipe);
   $(".progress-wrap").style.display = "none";
   $("#endless-hud").style.display = "none";
   clearCustomer();
   $("#ticket-label").textContent = "Cocktail of the Day";
   $("#stage-pill").textContent = "🍹 Daily";
-  $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
+  $("#diff-pill").textContent = state.complexity.label;
   $("#order-name").textContent = recipe.name;
   $("#order-desc").textContent = recipe.order;
   recordPlayDay();
@@ -464,6 +560,168 @@ function renderBadges() {
       `<span class="badge-desc">${b.desc}</span>`;
     el.appendChild(card);
   });
+}
+
+// ============================ Stage map (journey) ============================
+function renderMap() {
+  const path = $("#map-path");
+  if (!path) return;
+  const pool = drinkPool();
+  const map = getMap();
+  const cleared = map.cleared || 0;
+
+  // Header: current rank + total stars.
+  const rk = rankInfo(rankForCleared(cleared));
+  $("#map-rank-emoji").textContent = rk.emoji;
+  $("#map-rank-name").textContent = rk.name;
+  $("#map-stars-total").textContent = `★ ${totalStars()}`;
+
+  path.innerHTML = "";
+  let lastRank = -1;
+  const nodeEls = [];
+
+  pool.forEach((recipe, i) => {
+    const rankIdx = rankForCleared(i);
+    if (rankIdx !== lastRank) {
+      lastRank = rankIdx;
+      const info = rankInfo(rankIdx);
+      const div = document.createElement("div");
+      div.className = "map-rank-divider" + (i > cleared ? " is-locked" : "");
+      div.innerHTML =
+        `<span class="rd-emoji">${info.emoji}</span>` +
+        `<span class="rd-name">${info.name}</span>` +
+        `<span class="rd-tag">Stages ${rankIdx * STAGES_PER_RANK + 1}–${Math.min(pool.length, (rankIdx + 1) * STAGES_PER_RANK)}</span>`;
+      path.appendChild(div);
+    }
+
+    const done = i < cleared;
+    const current = i === cleared;
+    const locked = i > cleared;
+    const stars = map.stars[i] || 0;
+
+    const node = document.createElement("button");
+    node.className = "map-node" + (done ? " is-done" : current ? " is-current" : " is-locked");
+    const starHtml = done
+      ? [0, 1, 2].map((s) => `<span class="${s < stars ? "on" : ""}">★</span>`).join("")
+      : "";
+    node.innerHTML =
+      `<span class="map-stars">${starHtml}</span>` +
+      `<span class="map-coin">${locked ? "🔒" : i + 1}</span>` +
+      `<span class="map-node-label">${recipe.name}</span>`;
+    if (!locked) {
+      node.addEventListener("click", () => {
+        Sound.click();
+        startStageFromMap(i);
+      });
+    } else {
+      node.addEventListener("click", () => { Sound.fail(); showToast("🔒 Clear the stage before it to unlock this one."); });
+    }
+    path.appendChild(node);
+    nodeEls[i] = node;
+  });
+
+  // Position (and possibly walk) the duck avatar once the screen is visible.
+  setTimeout(() => placeDuck(path, nodeEls, cleared), 40);
+}
+
+// The duck avatar sits on the player's current stage and waddles to the next
+// one whenever a stage was just cleared (pendingWalk).
+function placeDuck(path, nodeEls, cleared) {
+  let duck = path.querySelector(".map-duck");
+  if (!duck) {
+    duck = document.createElement("div");
+    duck.className = "map-duck";
+    duck.innerHTML = `<img src="assets/duck.png" alt="" draggable="false">`;
+    path.appendChild(duck);
+  }
+  const coinCenter = (node) => {
+    const coin = node.querySelector(".map-coin");
+    return {
+      x: node.offsetLeft + coin.offsetLeft + coin.offsetWidth / 2,
+      y: node.offsetTop + coin.offsetTop + coin.offsetHeight / 2,
+    };
+  };
+  const walk = pendingWalk;
+  pendingWalk = null;
+  const fromN = walk && nodeEls[walk.from];
+  const toN = walk && nodeEls[walk.to];
+
+  if (fromN && toN) {
+    const a = coinCenter(fromN);
+    const b = coinCenter(toN);
+    duck.style.left = a.x + "px";
+    duck.style.top = a.y + "px";
+    duck.classList.remove("is-walking");
+    void duck.offsetWidth; // reflow so the start position takes hold
+    duck.classList.add("is-walking");
+    if (Sound.step) Sound.step(); else Sound.click();
+    requestAnimationFrame(() => {
+      duck.style.left = b.x + "px";
+      duck.style.top = b.y + "px";
+    });
+    setTimeout(() => duck.classList.remove("is-walking"), 1500);
+    setTimeout(() => toN.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" }), 120);
+  } else {
+    const idx = Math.min(cleared, nodeEls.length - 1);
+    const n = nodeEls[idx];
+    if (!n) return;
+    const c = coinCenter(n);
+    duck.style.left = c.x + "px";
+    duck.style.top = c.y + "px";
+    setTimeout(() => n.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" }), 30);
+  }
+}
+
+function startStageFromMap(index) {
+  state.totalScore = 0;
+  state.starsEarned = 0;
+  displayedScore = 0;
+  loadStage(index);
+}
+
+// ============================ Rank-up celebration ============================
+let pendingRankUp = null;
+let pendingWalk = null; // { from, to } — duck waddles across the map after a clear
+function recordStageResult(stageIdx, stars) {
+  const m = getMap();
+  m.stars[stageIdx] = Math.max(m.stars[stageIdx] || 0, stars);
+  if (stars >= 1 && stageIdx === m.cleared) {
+    const before = rankForCleared(m.cleared);
+    m.cleared = Math.min(drinkPool().length, m.cleared + 1);
+    const after = rankForCleared(m.cleared);
+    if (after > before) pendingRankUp = after;
+    pendingWalk = { from: stageIdx, to: m.cleared };
+  }
+  setMap(m);
+}
+// Generic full-screen announcement (rank-ups + rules changes).
+function showAnnounce({ emoji, eyebrow, title, body, button }) {
+  $("#rankup-emoji").textContent = emoji;
+  $("#rankup-eyebrow").textContent = eyebrow;
+  $("#rankup-name").textContent = title;
+  const b = $("#rankup-body");
+  b.textContent = body || "";
+  b.style.display = body ? "" : "none";
+  $("#btn-rankup-ok").textContent = button || "Got it →";
+  $("#rankup").classList.add("is-open");
+  Sound.coin();
+}
+function showRankUp(rankIdx) {
+  const r = rankInfo(rankIdx);
+  showAnnounce({
+    emoji: r.emoji,
+    eyebrow: "Rank up!",
+    title: r.name,
+    body: `You've been promoted to ${r.name}. Tougher drinks and bigger menus lie ahead — keep climbing!`,
+    button: "Keep climbing →",
+  });
+}
+// When a stage introduces new rules, explain them once.
+function maybeShowTierIntro(label) {
+  const intro = TIER_INTRO[label];
+  if (!intro || tierSeen(label)) return;
+  markTierSeen(label);
+  setTimeout(() => showAnnounce(intro), 260);
 }
 
 // ============================ High score (localStorage) ============================
@@ -539,7 +797,7 @@ function wait(ms) {
 // ============================ Progress & points ============================
 function updateProgress() {
   const stepsCount = state.steps.length || 1;
-  const frac = (state.stage + state.stepIndex / stepsCount) / RECIPES.length;
+  const frac = (state.stage + state.stepIndex / stepsCount) / (drinkPool().length || 1);
   $("#progress-fill").style.width = Math.min(100, Math.round(frac * 100)) + "%";
 }
 
@@ -605,7 +863,9 @@ function renderStation() {
   const svg = Glass.buildGlass(g);
   mount.appendChild(svg);
   updateLiquid(false);
-  applyGarnishVisual();
+  // Auto garnish is held back until the drink is mixed so it doesn't float on
+  // an empty glass; a player-chosen garnish step manages its own visual.
+  if (state.steps.includes("garnish") || state.mixed) applyGarnishVisual();
 }
 
 // Compute the liquid bands + fill fraction for the current build.
@@ -739,9 +999,13 @@ function renderStepPanel() {
   const step = state.steps[state.stepIndex];
   const panel = $("#step-panel");
   const meta = STEP_META[step];
+  let sub = meta.sub;
+  if (step === "ingredients" && state.complexity && state.complexity.portions === false) {
+    sub = "Tap the ingredients you think belong in this drink — no measuring yet.";
+  }
   panel.innerHTML = `
     <h3 class="step-panel-title">${meta.title}</h3>
-    <p class="step-panel-sub">${meta.sub}</p>
+    <p class="step-panel-sub">${sub}</p>
     <div id="panel-body"></div>
   `;
   const body = $("#panel-body");
@@ -842,6 +1106,25 @@ function fillCatalog() {
   const added = new Set(state.build.ingredients.map((i) => i.id));
   // Underage players never see anything alcoholic.
   const pantry = isUnderage() ? INGREDIENTS.filter((i) => (i.mx?.abv || 0) === 0) : INGREDIENTS;
+
+  // Early stages use a short, curated menu — a flat shuffled grid of options.
+  if (state.menuIds) {
+    const items = document.createElement("div");
+    items.className = "cat-items";
+    [...state.menuIds].forEach((id) => {
+      const ing = INGREDIENT_BY_ID[id];
+      if (!ing) return;
+      const btn = document.createElement("button");
+      btn.className = "cat-item" + (added.has(ing.id) ? " is-added" : "");
+      btn.textContent = ing.name;
+      btn.addEventListener("click", () => addIngredient(ing.id));
+      items.appendChild(btn);
+    });
+    el.appendChild(items);
+    applyTrainingHints();
+    return;
+  }
+
   const cats = [...new Set(pantry.map((i) => i.cat))];
   cats.forEach((cat) => {
     const group = document.createElement("div");
@@ -869,25 +1152,40 @@ function fillBuildList() {
     el.innerHTML = `<p class="build-empty">No ingredients yet. Tap one to add it.</p>`;
     return;
   }
+  const guessMode = state.complexity && state.complexity.portions === false;
   state.build.ingredients.forEach((entry) => {
     const ing = INGREDIENT_BY_ID[entry.id];
     const meta = unitMeta(ing.unit);
     const row = document.createElement("div");
     row.className = "build-row";
+    if (guessMode) {
+      // No portions yet — just show what's been added.
+      row.innerHTML = `
+        <span class="ing-name">${ing.name}</span>
+        <span class="unit guess-added">✓ added</span>
+        <button class="remove-btn" title="Remove">×</button>
+      `;
+      row.querySelector(".remove-btn").addEventListener("click", () => removeIngredient(entry.id));
+      el.appendChild(row);
+      return;
+    }
+    // Show amounts in the player's chosen units (ml stored internally).
+    const disp = dispAmount(ing.unit, entry.amount);
+    const step = dispStep(ing.unit);
     row.innerHTML = `
       <span class="ing-name">${ing.name}</span>
       <div class="stepper">
         <button data-act="dec">−</button>
-        <input type="number" value="${entry.amount}" min="${meta.min}" step="${meta.step}" />
+        <input type="number" value="${disp.val}" min="${meta.min}" step="${step}" />
         <button data-act="inc">+</button>
       </div>
-      <span class="unit">${ing.unit}</span>
+      <span class="unit">${disp.label}</span>
       <button class="remove-btn" title="Remove">×</button>
     `;
     const input = row.querySelector("input");
-    row.querySelector('[data-act="dec"]').addEventListener("click", () => changeAmount(entry.id, entry.amount - meta.step, false));
-    row.querySelector('[data-act="inc"]').addEventListener("click", () => changeAmount(entry.id, entry.amount + meta.step, true));
-    input.addEventListener("change", () => changeAmount(entry.id, Number(input.value) || 0, false));
+    row.querySelector('[data-act="dec"]').addEventListener("click", () => changeAmount(entry.id, toMl(ing.unit, disp.val - step), false));
+    row.querySelector('[data-act="inc"]').addEventListener("click", () => changeAmount(entry.id, toMl(ing.unit, disp.val + step), true));
+    input.addEventListener("change", () => changeAmount(entry.id, toMl(ing.unit, Number(input.value) || 0), false));
     row.querySelector(".remove-btn").addEventListener("click", () => removeIngredient(entry.id));
     el.appendChild(row);
   });
@@ -896,8 +1194,15 @@ function fillBuildList() {
 function addIngredient(id) {
   if (state.build.ingredients.some((i) => i.id === id)) return;
   state.mixed = false; // adding changes the build; un-blend
-  const meta = unitMeta(INGREDIENT_BY_ID[id].unit);
-  state.build.ingredients.push({ id, amount: meta.def });
+  let amount = unitMeta(INGREDIENT_BY_ID[id].unit).def;
+  // In guess mode the player doesn't set volumes — pour the *correct* recipe
+  // portion for ingredients that belong to the drink so it looks realistic.
+  if (state.complexity && state.complexity.portions === false) {
+    const recipe = currentRecipe();
+    const target = recipe && recipe.ingredients.find((i) => i.id === id);
+    if (target) amount = target.amount;
+  }
+  state.build.ingredients.push({ id, amount });
   fillCatalog();
   fillBuildList();
   animatePour(id);
@@ -969,13 +1274,15 @@ function enterStep() {
 
 async function goNext() {
   const cur = state.steps[state.stepIndex];
+  // When the method step is auto (not chosen by the player), apply it
+  // automatically when leaving the pour step so the drink still gets mixed —
+  // even if ingredients is the last step (early tiers have no garnish step).
+  if (cur === "ingredients" && !state.steps.includes("method") && state.build.method) {
+    const panel = $("#step-panel");
+    panel.innerHTML = `<div class="auto-note">Auto-preparing with the <strong>${METHOD_BY_ID[state.build.method].name}</strong> method…</div>`;
+    await runMethod(state.build.method);
+  }
   if (state.stepIndex < state.steps.length - 1) {
-    // Basic mode auto-applies the (correct) method between pour and garnish.
-    if (cur === "ingredients" && state.difficulty === "basic") {
-      const panel = $("#step-panel");
-      panel.innerHTML = `<div class="auto-note">Auto-preparing with the <strong>${METHOD_BY_ID[state.build.method].name}</strong> method…</div>`;
-      await runMethod(state.build.method);
-    }
     state.stepIndex++;
     enterStep();
   } else {
@@ -1003,17 +1310,12 @@ function loadStage(index) {
   const pool = drinkPool();
   const recipe = pool[index];
 
-  // Basic mode: glass & method are chosen automatically.
-  if (state.difficulty === "basic") {
-    state.build.glass = recipe.glass;
-    state.build.method = recipe.method;
-  }
-  state.steps = getSteps(state.difficulty);
-  state.stepIndex = 0;
+  // Complexity scales with how far you've climbed.
+  applyComplexity(complexityForStage(index + 1), recipe);
 
   $("#ticket-label").textContent = "Customer Order";
   $("#stage-pill").textContent = `Stage ${index + 1} / ${pool.length}`;
-  $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
+  $("#diff-pill").textContent = state.complexity.label;
   pickCustomer();
   renderCustomer(recipe.name);
   $("#order-name").textContent = recipe.name;
@@ -1024,6 +1326,7 @@ function loadStage(index) {
   renderStation();
   enterStep();
   showScreen("screen-game");
+  maybeShowTierIntro(state.complexity.label);
 }
 
 // ============================ Endless shift ============================
@@ -1051,12 +1354,8 @@ function loadEndless(next = false) {
   const recipe = pool[idx];
   state.endlessRecipe = recipe;
 
-  if (state.difficulty === "basic") {
-    state.build.glass = recipe.glass;
-    state.build.method = recipe.method;
-  }
-  state.steps = getSteps(state.difficulty === "mixologist" ? "advanced" : state.difficulty);
-  state.stepIndex = 0;
+  // Endless mirrors the player's current ramp difficulty.
+  applyComplexity(complexityForStage(getMap().cleared + 1), recipe);
 
   // HUD: hide the linear progress bar, show lives/streak.
   $(".progress-wrap").style.display = "";
@@ -1066,7 +1365,7 @@ function loadEndless(next = false) {
 
   $("#ticket-label").textContent = "Now serving";
   $("#stage-pill").textContent = `Endless · 🍸 ${state.served}`;
-  $("#diff-pill").textContent = state.difficulty === "basic" ? "Basic" : "Advanced";
+  $("#diff-pill").textContent = state.complexity.label;
   pickCustomer();
   renderCustomer(recipe.name);
   $("#order-name").textContent = recipe.name;
@@ -1134,6 +1433,13 @@ function tolerance(unit, target) {
   return 0;
 }
 
+// Be more forgiving about pour accuracy the deeper a player gets — harder drinks
+// with more ingredients shouldn't punish small measurement slips as harshly.
+function measureLeniency() {
+  const n = state.mode === "campaign" ? state.stage + 1 : (getMap().cleared + 1);
+  return 1 + Math.min(0.8, Math.max(0, n - 6) * 0.045);
+}
+
 function currentRecipe() {
   if (state.mode === "training" && state.trainingRecipe) return state.trainingRecipe;
   if (state.mode === "cotd" && state.cotdRecipe) return state.cotdRecipe;
@@ -1174,6 +1480,8 @@ function loadTraining() {
     : (RECIPES.find((r) => r.id === "daiquiri") || RECIPES[0]);
   state.build = emptyBuild();
   state.mixed = false;
+  state.complexity = null;
+  state.menuIds = null;
   state.steps = getSteps("advanced");
   state.stepIndex = 0;
   state.totalScore = 0;
@@ -1294,25 +1602,39 @@ function scoreBuild() {
   const builtMap = new Map(state.build.ingredients.map((i) => [i.id, i.amount]));
   const targetIds = new Set(recipe.ingredients.map((i) => i.id));
 
+  const guessMode = state.complexity && state.complexity.portions === false;
+
   recipe.ingredients.forEach((target) => {
     const ing = INGREDIENT_BY_ID[target.id];
     maxPoints += 2;
     if (!builtMap.has(target.id)) {
-      feedback.push(fb("bad", ing.name, `Missing — needs ${target.amount} ${ing.unit}.`));
+      const tMiss = dispAmount(ing.unit, target.amount);
+      feedback.push(fb("bad", ing.name, guessMode ? "Missing from the recipe." : `Missing — needs ${tMiss.val} ${tMiss.label}.`));
+      return;
+    }
+    // Guess mode: score on getting the ingredient right, not the amount.
+    if (guessMode) {
+      points += 2;
+      feedback.push(fb("ok", ing.name, "Correct ingredient."));
       return;
     }
     const have = builtMap.get(target.id);
     const diff = Math.abs(have - target.amount);
-    const allow = ing.unit === "ml" ? tolerance(ing.unit, target.amount) : 1;
-    const perfect = ing.unit === "ml" ? Math.max(2.5, target.amount * 0.07) : 0;
+    const leni = measureLeniency();
+    const allow = ing.unit === "ml" ? tolerance(ing.unit, target.amount) * leni : 1;
+    const perfect = ing.unit === "ml" ? Math.max(2.5, target.amount * 0.07) * leni : 0;
+    const h = dispAmount(ing.unit, have);
+    const t = dispAmount(ing.unit, target.amount);
     if (diff <= perfect) {
       points += 2;
-      feedback.push(fb("ok", ing.name, `${have} ${ing.unit} — spot on (target ${target.amount}).`));
+      feedback.push(fb("ok", ing.name, `${h.val} ${h.label} — spot on (target ${t.val}).`));
     } else if (diff <= allow) {
       points += 1;
-      feedback.push(fb("near", ing.name, `${have} ${ing.unit} — close (target ${target.amount}).`));
+      feedback.push(fb("near", ing.name, `${h.val} ${h.label} — close (target ${t.val}).`));
     } else {
-      feedback.push(fb("bad", ing.name, `${have} ${ing.unit} — off (target ${target.amount}).`));
+      // Right ingredient, amount off — point it out gently (not a hard miss).
+      const over = have > target.amount;
+      feedback.push(fb("near", ing.name, `${h.val} ${h.label} — a bit ${over ? "much" : "light"} (aim for ${t.val}).`));
     }
   });
 
@@ -1337,8 +1659,24 @@ function scoreBuild() {
 
   points = Math.max(0, points);
   const pct = Math.round((points / maxPoints) * 100);
-  const stars = pct >= 90 ? 3 : pct >= 70 ? 2 : pct >= 45 ? 1 : 0;
-  return { pct, stars, stagePoints: points * 10, feedback };
+  let stars = pct >= 90 ? 3 : pct >= 70 ? 2 : pct >= 45 ? 1 : 0;
+  const result = { pct, stars, stagePoints: points * 10, feedback };
+
+  // Judges taste every served cocktail (except the tutorial). Their palate
+  // verdict blends into the final stars once the player controls the pour;
+  // in early guess stages it's shown as flavour reactions only (no star effect).
+  if (state.mode !== "training") {
+    const evalResult = evaluate(state.build, { strictness: STRICTNESS });
+    const panel = scoreWithJudges(evalResult, pickJudges(3));
+    result.judgePanel = panel;
+    const blendable = !state.complexity || state.complexity.portions !== false;
+    if (blendable) {
+      const blended = Math.round(pct * 0.75 + panel.total * 0.25);
+      result.blended = blended;
+      result.stars = blended >= 90 ? 3 : blended >= 70 ? 2 : blended >= 45 ? 1 : 0;
+    }
+  }
+  return result;
 }
 
 function fb(kind, label, text) {
@@ -1372,6 +1710,7 @@ function serve() {
   state.totalScore += lastResult.stagePoints;
   state.starsEarned += lastResult.stars;
   recordResult(lastResult);
+  recordStageResult(state.stage, lastResult.stars);
   if (lastResult.stars === 0) Sound.fail();
   showResult(lastResult);
 }
@@ -1398,6 +1737,8 @@ function startMixologist() {
   state.challenge = null;
   state.build = emptyBuild();
   state.mixed = false;
+  state.complexity = null;
+  state.menuIds = null;
   state.steps = getSteps("mixologist");
   state.stepIndex = 0;
   $(".progress-wrap").style.display = "none";
@@ -1423,8 +1764,8 @@ function serveMix() {
   showMixResult(result);
 }
 
-function renderJudges(judges) {
-  const el = $("#judges-panel");
+function renderJudges(judges, sel = "#judges-panel") {
+  const el = $(sel);
   if (!el) return;
   el.innerHTML = judges
     .map((j) => `
@@ -1475,7 +1816,8 @@ function showMixResult(result) {
   }
 
   $("#mix-note").textContent = result.note;
-  $("#mix-meta").innerHTML = `<span>${result.abv}% ABV</span><span>${result.volume} ml</span><span>${result.family}</span>`;
+  const vol = useImperial() ? `${(result.volume / ML_PER_OZ).toFixed(1)} oz` : `${result.volume} ml`;
+  $("#mix-meta").innerHTML = `<span>${result.abv}% ABV</span><span>${vol}</span><span>${result.family}</span>`;
   renderFlavorBars(result.profile);
 
   const tipsEl = $("#mix-tips");
@@ -1574,6 +1916,8 @@ function loadChallenge(recipe) {
   state.difficulty = "advanced";
   state.build = emptyBuild();
   state.mixed = false;
+  state.complexity = null;
+  state.menuIds = null;
   state.steps = getSteps("advanced");
   state.stepIndex = 0;
   $(".progress-wrap").style.display = "none";
@@ -1617,9 +1961,23 @@ function showResult(result) {
     }, 350 + i * 450);
   }
 
-  $("#result-pct").textContent = result.pct;
+  $("#result-pct").textContent = result.blended != null ? result.blended : result.pct;
   const pts = result.stagePoints + (result.tip || 0);
   $("#result-points").textContent = pts;
+
+  // Judges' reaction panel (every served cocktail except the tutorial).
+  const jWrap = $("#result-judges-wrap");
+  if (result.judgePanel) {
+    const p = result.judgePanel;
+    const label = result.blended != null
+      ? `⚖️ The judges: ${p.verdict} (avg ${p.total})`
+      : `⚖️ The judges taste it (avg ${p.total} — flavour only here)`;
+    $("#result-judges-title").textContent = label;
+    renderJudges(p.judges, "#result-judges");
+    jWrap.style.display = "";
+  } else {
+    jWrap.style.display = "none";
+  }
 
   // Customer reaction (campaign & endless only)
   const custEl = $("#result-customer");
@@ -1642,32 +2000,50 @@ function showResult(result) {
   });
 
   const retryBtn = $("#btn-retry");
+  const nextBtn = $("#btn-next-stage");
+  const mapBtn = $("#btn-result-map");
+  mapBtn.style.display = "none";
+  nextBtn.style.display = "";
   if (state.mode === "training") {
     retryBtn.style.display = "";
     retryBtn.textContent = "Try again";
     $("#result-eyebrow").textContent = result.stars >= 2 ? "🎓 You've got it!" : "Lesson complete";
-    $("#btn-next-stage").textContent = "Start a real shift →";
+    nextBtn.textContent = "Start the journey →";
   } else if (state.mode === "endless") {
     retryBtn.style.display = "none";
     retryBtn.textContent = "Retry stage";
     $("#result-eyebrow").textContent = state.lives > 0 ? "Order up" : "Out of lives";
-    $("#btn-next-stage").textContent = state.lives > 0 ? "Next customer →" : "End shift →";
+    nextBtn.textContent = state.lives > 0 ? "Next customer →" : "End shift →";
   } else if (state.mode === "challenge") {
     retryBtn.style.display = "";
     retryBtn.textContent = "Retry stage";
-    $("#btn-next-stage").textContent = "Back to My Bar";
+    nextBtn.textContent = "Back to My Bar";
   } else if (state.mode === "cotd") {
     retryBtn.style.display = "";
     retryBtn.textContent = "Try again";
     $("#result-eyebrow").textContent = result.stars >= 1 ? "🍹 Cocktail of the Day" : "Needs work";
-    $("#btn-next-stage").textContent = "Back to menu";
+    nextBtn.textContent = "Back to menu";
   } else {
+    // Campaign — must earn at least 1 star to advance to the next node.
     retryBtn.style.display = "";
     retryBtn.textContent = "Retry stage";
+    mapBtn.style.display = "";
     const isLast = state.stage === drinkPool().length - 1;
-    $("#btn-next-stage").textContent = isLast ? "See results →" : "Next stage →";
+    if (result.stars < 1) {
+      $("#result-eyebrow").textContent = "So close — try again";
+      nextBtn.style.display = "none";
+    } else {
+      nextBtn.textContent = isLast ? "See results →" : "Continue →";
+    }
   }
   showScreen("screen-result");
+
+  // Celebrate a rank-up on top of the result.
+  if (pendingRankUp !== null) {
+    const r = pendingRankUp;
+    pendingRankUp = null;
+    setTimeout(() => showRankUp(r), 900);
+  }
 }
 
 function showFinish() {
@@ -1699,42 +2075,29 @@ function showFinish() {
 }
 
 // ============================ Event wiring ============================
-// Difficulty selection
-document.querySelectorAll(".diff-card").forEach((card) => {
-  card.addEventListener("click", () => {
-    const diff = card.dataset.diff;
-    if ((diff === "advanced" && !isUnlocked("advanced")) || (diff === "mixologist" && !isUnlocked("mixologist"))) {
-      Sound.init();
-      Sound.fail();
-      showToast(`🔒 Reach level ${UNLOCKS[diff]} to unlock ${diff === "advanced" ? "Advanced" : "Mixologist"}`);
-      return;
-    }
-    Sound.init();
-    Sound.click();
-    document.querySelectorAll(".diff-card").forEach((c) => c.classList.remove("is-selected"));
-    card.classList.add("is-selected");
-    state.difficulty = diff;
-  });
-});
-
+// Play the journey → open the stage map.
 $("#btn-start").addEventListener("click", () => {
   Sound.init();
-  Sound.coin();
-  if (state.difficulty === "mixologist") {
-    if (!isUnlocked("mixologist")) { Sound.fail(); showToast(`🔒 Reach level ${UNLOCKS.mixologist} to unlock Mixologist`); return; }
-    startMixologist();
-    return;
-  }
+  Sound.click();
   recordPlayDay();
-  state.totalScore = 0;
-  state.starsEarned = 0;
-  displayedScore = 0;
-  loadStage(0);
+  renderMap();
+  showScreen("screen-map");
+});
+
+$("#btn-map-back").addEventListener("click", () => { Sound.click(); showScreen("screen-start"); });
+$("#btn-result-map").addEventListener("click", () => { Sound.click(); renderMap(); showScreen("screen-map"); });
+$("#btn-rankup-ok").addEventListener("click", () => { Sound.click(); $("#rankup").classList.remove("is-open"); });
+
+$("#btn-mixologist").addEventListener("click", () => {
+  Sound.init();
+  if (!mapUnlocked()) { Sound.fail(); showToast(`🔒 Clear ${STAGES_TO_UNLOCK} stages to unlock Mixologist`); return; }
+  Sound.coin();
+  startMixologist();
 });
 
 $("#btn-endless").addEventListener("click", () => {
   Sound.init();
-  if (!isUnlocked("endless")) { Sound.fail(); showToast(`🔒 Reach level ${UNLOCKS.endless} to unlock Endless Shift`); return; }
+  if (!mapUnlocked()) { Sound.fail(); showToast(`🔒 Clear ${STAGES_TO_UNLOCK} stages to unlock Endless Shift`); return; }
   Sound.coin();
   recordPlayDay();
   state.totalScore = 0;
@@ -1751,6 +2114,7 @@ $("#btn-endless").addEventListener("click", () => {
 $("#btn-sound").addEventListener("click", () => {
   Sound.init();
   const on = Sound.toggle();
+  const s = getSettings(); s.sound = on; setSettings(s);
   $("#btn-sound").textContent = on ? "🔊" : "🔇";
   if (on) Sound.click();
 });
@@ -1791,13 +2155,10 @@ $("#btn-retry").addEventListener("click", () => {
 $("#btn-next-stage").addEventListener("click", () => {
   lastResult = null;
   if (state.mode === "training") {
-    // Graduate straight into a real (Basic) shift.
-    state.difficulty = "basic";
-    document.querySelectorAll(".diff-card").forEach((c) => c.classList.toggle("is-selected", c.dataset.diff === "basic"));
-    state.totalScore = 0;
-    state.starsEarned = 0;
-    displayedScore = 0;
-    loadStage(0);
+    // Graduate into the journey map.
+    Sound.click();
+    renderMap();
+    showScreen("screen-map");
     return;
   }
   if (state.mode === "cotd") {
@@ -1814,8 +2175,14 @@ $("#btn-next-stage").addEventListener("click", () => {
     else showEndlessFinish();
     return;
   }
-  if (state.stage < drinkPool().length - 1) loadStage(state.stage + 1);
-  else showFinish();
+  // Return to the journey map so the duck waddles to the next stage, then the
+  // player taps in to play it. The last stage jumps straight to the finish.
+  if (state.stage < drinkPool().length - 1) {
+    renderMap();
+    showScreen("screen-map");
+  } else {
+    showFinish();
+  }
 });
 
 // Mixologist result actions
@@ -1890,15 +2257,20 @@ $("#invent-name").addEventListener("keydown", (e) => {
 });
 
 $("#btn-replay").addEventListener("click", () => {
-  state.totalScore = 0;
-  state.starsEarned = 0;
-  displayedScore = 0;
-  loadStage(0);
+  Sound.click();
+  renderMap();
+  showScreen("screen-map");
 });
 
 $("#btn-quit").addEventListener("click", () => {
-  renderStartBest();
-  showScreen("screen-start");
+  Sound.click();
+  if (state.mode === "campaign") {
+    renderMap();
+    showScreen("screen-map");
+  } else {
+    renderStartBest();
+    showScreen("screen-start");
+  }
 });
 
 // ============================ Recipe Book ============================
@@ -1978,16 +2350,40 @@ $("#btn-endless-menu").addEventListener("click", () => {
 });
 
 // ============================ Profile / age gate ============================
-function openProfileForm() {
-  const p = getProfile();
+function openProfileForm(blank = false) {
+  const p = blank ? null : getProfile();
   $("#pf-name").value = p?.name || "";
   $("#pf-age").value = p?.age || "";
   $("#pf-location").value = p?.location || "";
   $("#pf-email").value = p?.email || "";
+  setSegActive("pf-units", p?.units || "metric");
   $("#pf-error").textContent = "";
   showScreen("screen-profile");
   setTimeout(() => $("#pf-name").focus(), 50);
 }
+
+// Segmented control helpers (used by the units pickers).
+function setSegActive(id, value) {
+  const grp = document.getElementById(id);
+  if (!grp) return;
+  grp.querySelectorAll(".seg-tab").forEach((t) => t.classList.toggle("is-active", t.dataset.units === value));
+}
+function segValue(id) {
+  const el = document.querySelector(`#${id} .seg-tab.is-active`);
+  return el ? el.dataset.units : "metric";
+}
+function wireSeg(id, onPick) {
+  const grp = document.getElementById(id);
+  if (!grp) return;
+  grp.querySelectorAll(".seg-tab").forEach((t) => {
+    t.addEventListener("click", () => {
+      grp.querySelectorAll(".seg-tab").forEach((x) => x.classList.remove("is-active"));
+      t.classList.add("is-active");
+      if (onPick) onPick(t.dataset.units);
+    });
+  });
+}
+wireSeg("pf-units");
 
 $("#profile-form").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -2003,6 +2399,7 @@ $("#profile-form").addEventListener("submit", (e) => {
   const profile = {
     id: existing?.id || (email || genId()),
     name, age, location, email,
+    units: segValue("pf-units"),
     createdAt: existing?.createdAt || Date.now(),
     updatedAt: Date.now(),
   };
@@ -2018,10 +2415,116 @@ $("#btn-edit-profile").addEventListener("click", () => {
   openProfileForm();
 });
 
+// ============================ Settings ============================
+function syncSoundButtons() {
+  const sb = $("#btn-sound");
+  if (sb) sb.textContent = Sound.enabled ? "🔊" : "🔇";
+}
+
+function openSettings() {
+  const p = getProfile();
+  setSegActive("set-units", useImperial() ? "imperial" : "metric");
+  const snd = $("#set-sound");
+  snd.textContent = Sound.enabled ? "On" : "Off";
+  snd.setAttribute("aria-pressed", Sound.enabled ? "true" : "false");
+  const amb = $("#set-ambient");
+  amb.textContent = Sound.ambientEnabled ? "On" : "Off";
+  amb.setAttribute("aria-pressed", Sound.ambientEnabled ? "true" : "false");
+  $("#set-account-who").textContent = p ? `Signed in as ${p.name}${p.age ? " · " + p.age : ""}` : "";
+  showScreen("screen-settings");
+}
+
+// Clear the current identity (and any backend session) and return to the gate.
+function logoutToGate() {
+  try {
+    localStorage.removeItem(PROFILE_KEY);
+    Object.keys(localStorage).filter((k) => k.startsWith("sb-")).forEach((k) => localStorage.removeItem(k));
+  } catch (e) { /* ignore */ }
+  applyProfile();
+  openProfileForm(true);
+}
+
+$("#btn-settings").addEventListener("click", () => { Sound.init(); Sound.click(); openSettings(); });
+$("#btn-settings-back").addEventListener("click", () => { Sound.click(); onShowStart(); showScreen("screen-start"); });
+
+wireSeg("set-units", (units) => {
+  const p = getProfile();
+  if (p) { p.units = units; p.updatedAt = Date.now(); setProfile(p); }
+  Sound.click();
+});
+
+$("#set-sound").addEventListener("click", () => {
+  Sound.init();
+  const on = Sound.toggle();
+  const s = getSettings(); s.sound = on; setSettings(s);
+  $("#set-sound").textContent = on ? "On" : "Off";
+  $("#set-sound").setAttribute("aria-pressed", on ? "true" : "false");
+  syncSoundButtons();
+  if (on) Sound.click();
+});
+
+$("#set-ambient").addEventListener("click", () => {
+  Sound.init();
+  const on = Sound.toggleAmbient();
+  $("#set-ambient").textContent = on ? "On" : "Off";
+  $("#set-ambient").setAttribute("aria-pressed", on ? "true" : "false");
+  $("#btn-ambient").classList.toggle("is-active", on);
+  if (on) Sound.click();
+});
+
+$("#set-edit").addEventListener("click", () => { Sound.click(); openProfileForm(); });
+$("#set-switch").addEventListener("click", () => { Sound.click(); logoutToGate(); });
+$("#set-logout").addEventListener("click", () => {
+  if (window.confirm("Log out? You'll return to the sign-in screen. Your progress stays on this device.")) {
+    logoutToGate();
+  }
+});
+
+// ============================ Debug / testing toolbar ============================
+// Wipe all saved identity + progress (and any backend session) and reload so the
+// game boots completely fresh at the profile gate.
+function resetEverything() {
+  try {
+    // Remove this game's keys plus any Supabase auth session tokens.
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("lastcall_") || k.startsWith("sb-"))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch (e) { /* ignore */ }
+  try { sessionStorage.clear(); } catch (e) { /* ignore */ }
+  location.reload();
+}
+
+// Only expose debug tools on localhost or when ?debug is in the URL — never to
+// real players on the live site.
+function debugEnabled() {
+  const h = location.hostname;
+  const isLocal = h === "localhost" || h === "127.0.0.1" || h === "[::1]" || h === "";
+  const hasFlag = /[?&]debug\b/.test(location.search) || location.hash.includes("debug");
+  return isLocal || hasFlag;
+}
+
+(function initDebugToolbar() {
+  const bar = $("#debug-toolbar");
+  const toggle = $("#dbg-toggle");
+  const reset = $("#dbg-reset");
+  if (!bar || !toggle || !reset) return;
+  if (!debugEnabled()) { bar.remove(); return; }
+  bar.style.display = "";
+  toggle.addEventListener("click", () => bar.classList.toggle("is-open"));
+  reset.addEventListener("click", () => {
+    const ok = window.confirm(
+      "Reset everything?\n\nThis wipes your profile/identity and all progress (map, stars, streaks, badges, My Bar, high scores) and restarts the game fresh."
+    );
+    if (ok) resetEverything();
+  });
+})();
+
 // Boot: show the age gate on first visit, otherwise the start screen.
+Sound.enabled = getSettings().sound !== false; // restore the saved sound preference
+syncSoundButtons();
 checkBadges();
 if (!getProfile()) {
-  showScreen("screen-profile");
+  openProfileForm(true);
 } else {
   onShowStart();
 }

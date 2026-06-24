@@ -18,12 +18,16 @@ export const Sound = {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.6;
+    this.master.gain.value = this.enabled ? 0.6 : 0;
     this.master.connect(this.ctx.destination);
   },
 
   toggle() {
-    this.enabled = !this.enabled;
+    return this.setEnabled(!this.enabled);
+  },
+
+  setEnabled(on) {
+    this.enabled = !!on;
     if (this.master) {
       this.master.gain.setTargetAtTime(this.enabled ? 0.6 : 0, this.ctx.currentTime, 0.02);
     }
@@ -147,6 +151,13 @@ export const Sound = {
   garnish() {
     // soft "plop"
     this._tone(420, 0.12, { type: "sine", gain: 0.2, slideTo: 160 });
+  },
+
+  // little waddle as the duck walks the map — a few soft hops
+  step() {
+    for (let i = 0; i < 4; i++) {
+      this._tone(360 - i * 20, 0.07, { type: "sine", gain: 0.12, when: i * 0.2, slideTo: 220 });
+    }
   },
 
   // ---- results ----

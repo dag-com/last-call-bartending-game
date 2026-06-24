@@ -38,6 +38,13 @@
               <span class="pf-label">Email or unique ID</span>
               <input id="pf-email" class="name-input" type="text" maxlength="64" placeholder="e.g. alex@email.com (optional)" autocomplete="email" />
             </label>
+            <div class="pf-field">
+              <span class="pf-label">Measurements</span>
+              <div class="seg-tabs pf-seg" id="pf-units">
+                <button type="button" class="seg-tab is-active" data-units="metric">Metric (ml)</button>
+                <button type="button" class="seg-tab" data-units="imperial">Imperial (oz)</button>
+              </div>
+            </div>
             <p class="pf-error" id="pf-error"></p>
             <p class="name-hint">Stored only on this device for now. Under 18 means a mocktail-only (no alcohol) experience.</p>
             <button type="submit" id="btn-profile-save" class="btn btn-primary btn-lg">Enter the bar →</button>
@@ -47,17 +54,19 @@
 
       <!-- ============================== START SCREEN ============================== -->
       <section id="screen-start" class="screen is-active">
+        <div class="hero-bg" aria-hidden="true"></div>
         <div class="start-card">
           <div class="profile-bar" id="profile-bar" style="display:none">
             <span class="profile-chip" id="profile-chip"></span>
             <button id="btn-edit-profile" class="btn btn-ghost btn-sm">Edit</button>
           </div>
           <p class="mocktail-banner" id="mocktail-banner" style="display:none">🧃 Mocktail mode — alcohol-free menu</p>
-          <p class="eyebrow">Mix • Serve • Survive the rush</p>
+          <div class="brand-duck" aria-hidden="true"></div>
+          <p class="eyebrow">A DAG.com game · Play • Care • Connect</p>
           <h1 class="title">LAST&nbsp;CALL</h1>
           <p class="subtitle">
-            A bartending game. Read the order, then prep the drink step by step
-            like a real bartender. Measurements are metric (ml).
+            Climb the bartending journey — start simple, master the craft,
+            and work your way up to head mixologist.
           </p>
 
           <div class="player-meta" id="player-meta">
@@ -77,27 +86,10 @@
             <button id="btn-cotd" class="btn btn-cotd">Make it →</button>
           </div>
 
-          <div class="difficulty">
-            <p class="difficulty-label">Choose difficulty</p>
-            <div class="difficulty-grid">
-              <button class="diff-card is-selected" data-diff="basic">
-                <span class="diff-name">Basic</span>
-                <span class="diff-desc">Pick ingredients &amp; garnish. Glass &amp; method are chosen for you.</span>
-              </button>
-              <button class="diff-card" data-diff="advanced">
-                <span class="diff-name">Advanced</span>
-                <span class="diff-desc">You choose everything: glass, pour, method &amp; garnish.</span>
-              </button>
-              <button class="diff-card" data-diff="mixologist">
-                <span class="diff-name">Mixologist</span>
-                <span class="diff-desc">Free-pour sandbox — invent your own cocktail, then see if it works.</span>
-              </button>
-            </div>
-          </div>
-
           <div class="start-cta">
-            <button id="btn-start" class="btn btn-primary btn-lg">Start Shift</button>
+            <button id="btn-start" class="btn btn-primary btn-lg">▶ Play the Journey</button>
             <button id="btn-endless" class="btn btn-endless btn-lg">🔥 Endless Shift</button>
+            <button id="btn-mixologist" class="btn btn-mixologist btn-lg">🧪 Mixologist</button>
           </div>
           <div class="start-links">
             <button id="btn-training" class="btn btn-ghost">📚 Training</button>
@@ -107,10 +99,60 @@
             <button id="btn-how" class="btn btn-ghost">How to play</button>
             <button id="btn-recipes" class="btn btn-ghost">Recipe Book</button>
             <button id="btn-mybar" class="btn btn-ghost">My Bar</button>
+            <button id="btn-settings" class="btn btn-ghost">⚙ Settings</button>
           </div>
           <p class="best-score" id="start-best"></p>
         </div>
         <footer class="bar-footer" id="start-footer">🍸 cocktails &nbsp;•&nbsp; precision pours &nbsp;•&nbsp; earn your stars</footer>
+      </section>
+
+      <!-- ============================== SETTINGS ============================== -->
+      <section id="screen-settings" class="screen">
+        <div class="start-card settings-card">
+          <div class="settings-head">
+            <button id="btn-settings-back" class="btn btn-ghost btn-sm">← Menu</button>
+            <h2 class="settings-title">Settings</h2>
+          </div>
+
+          <div class="set-group">
+            <span class="set-label">Measurements</span>
+            <div class="seg-tabs" id="set-units">
+              <button type="button" class="seg-tab" data-units="metric">Metric (ml)</button>
+              <button type="button" class="seg-tab" data-units="imperial">Imperial (oz)</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <span class="set-label">Sound effects</span>
+            <button id="set-sound" class="set-toggle" aria-pressed="true">On</button>
+          </div>
+          <div class="set-row">
+            <span class="set-label">Bar ambience</span>
+            <button id="set-ambient" class="set-toggle" aria-pressed="false">Off</button>
+          </div>
+
+          <div class="set-account">
+            <p class="set-account-label" id="set-account-who"></p>
+            <button id="set-edit" class="btn btn-ghost">✎ Edit profile</button>
+            <button id="set-switch" class="btn btn-ghost">🔄 Switch user</button>
+            <button id="set-logout" class="btn btn-ghost set-danger">⎋ Log out</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== STAGE MAP (journey) ============================== -->
+      <section id="screen-map" class="screen">
+        <header class="map-topbar">
+          <button id="btn-map-back" class="btn btn-ghost btn-sm">← Menu</button>
+          <div class="map-rank" id="map-rank">
+            <span class="map-rank-emoji" id="map-rank-emoji">🧽</span>
+            <span class="map-rank-name" id="map-rank-name">Trainee</span>
+          </div>
+          <span class="map-stars-total" id="map-stars-total">★ 0</span>
+        </header>
+        <div class="map-scroll" id="map-scroll">
+          <div class="map-path" id="map-path"></div>
+        </div>
       </section>
 
       <!-- ============================== GAME SCREEN ============================== -->
@@ -189,7 +231,12 @@
           </div>
           <p class="result-customer" id="result-customer"></p>
           <ul class="feedback" id="feedback-list"></ul>
+          <div id="result-judges-wrap" style="display:none">
+            <p class="judges-title" id="result-judges-title">⚖️ The judges taste it</p>
+            <div class="judges-panel" id="result-judges"></div>
+          </div>
           <div class="result-actions">
+            <button id="btn-result-map" class="btn btn-ghost" style="display:none">🗺 Map</button>
             <button id="btn-retry" class="btn btn-ghost">Retry stage</button>
             <button id="btn-next-stage" class="btn btn-primary">Next stage →</button>
           </div>
@@ -358,6 +405,26 @@
             <button id="btn-name-save" class="btn btn-primary">Save</button>
           </div>
         </div>
+      </div>
+      <!-- ============================== RANK-UP CELEBRATION ============================== -->
+      <div id="rankup" class="rankup">
+        <div class="rankup-box">
+          <div class="rankup-emoji" id="rankup-emoji">🥃</div>
+          <p class="rankup-eyebrow" id="rankup-eyebrow">Rank up!</p>
+          <h2 class="rankup-name" id="rankup-name">Bartender</h2>
+          <p class="rankup-body" id="rankup-body"></p>
+          <button id="btn-rankup-ok" class="btn btn-primary btn-lg">Keep climbing →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== DEBUG / TESTING TOOLBAR ============================== -->
+    <!-- Hidden by default; revealed by game.js only on localhost or with ?debug in the URL. -->
+    <div id="debug-toolbar" class="debug-toolbar" aria-label="Debug toolbar" style="display:none">
+      <button id="dbg-toggle" class="dbg-toggle" title="Debug tools">🐞</button>
+      <div class="dbg-tools" id="dbg-tools">
+        <span class="dbg-label">DEBUG</span>
+        <button id="dbg-reset" class="dbg-btn dbg-danger" title="Wipe identity & progress, restart fresh">Reset everything</button>
       </div>
     </div>
 
